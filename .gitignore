@@ -20,7 +20,12 @@ node_modules
 .kiro/
 .qodo/
 
-# Unnecessary documentation files
+# Temporary deployment scripts (keep only setup-ec2.sh in repo)
+deploy.sh
+deploy-ssl.sh
+clear-rate-limit.sh
+
+# Temporary documentation files
 AUDIT_REPORT.md
 VERIFICATION_CHECKLIST.md
 SETUP_SUMMARY.md
@@ -28,10 +33,13 @@ QUICK_START.md
 DOCKER_SETUP.md
 GEOCODING_SETUP.md
 PRODUCTION_CHECKLIST.md
-
-# Deployment scripts are now INCLUDED (removed from gitignore)
-# setup-ec2.sh
-# deploy.sh
+DEPLOYMENT.md
+DEPLOYMENT_SUMMARY.md
+AWS_DEPLOYMENT_GUIDE.md
+AWS_FREE_TIER_INFO.md
+WINDOWS_DEPLOYMENT_GUIDE.md
+CONNECT_TO_EC2.md
+PRE_DEPLOYMENT_CHECKLIST.md
 
 # Reference files
 app/(auth)/login/ref.html

@@ -18,6 +18,7 @@ RUN npm ci && npm cache clean --force
 # Copy source code and config
 COPY tsconfig.json ./
 COPY src ./src
+COPY scripts ./scripts
 
 # Drop privileges before starting the process
 USER appuser

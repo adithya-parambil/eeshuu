@@ -8,7 +8,9 @@ import bcrypt from 'bcrypt'
 import { config } from 'dotenv'
 import path from 'path'
 
-config({ path: path.join(__dirname, '../.env.development') })
+// Try to load .env.development, fallback to production env vars if not found
+const envPath = path.join(__dirname, '../.env.development')
+config({ path: envPath })
 
 import { UserModel } from '../src/repositories/models/user.model'
 import { ProductModel } from '../src/repositories/models/product.model'
@@ -100,8 +102,12 @@ async function seedDatabase() {
   try {
     console.log('🌱 Starting database seed...\n')
 
-    const dbUri = process.env.DB_URI!
-    console.log(`📡 Connecting to MongoDB Atlas...`)
+    // Support both DB_URI (dev) and MONGO_URI (production)
+    const dbUri = process.env.DB_URI || process.env.MONGO_URI
+    if (!dbUri) {
+      throw new Error('DB_URI or MONGO_URI environment variable is required')
+    }
+    console.log(`📡 Connecting to MongoDB...`)
     await mongoose.connect(dbUri)
     console.log('✅ Connected\n')
 

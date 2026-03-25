@@ -1,0 +1,99 @@
+import { createApp } from './app'
+import { env } from './config/env'
+import { log } from './utils/logger'
+import { blacklistService } from './utils/blacklist'
+import mongoose from 'mongoose'
+import { dbConfig } from './config/modules/db.config'
+import { initializeSocketEngine } from './socket/socket.engine'
+
+async function connectWithRetry(
+  uri: string,
+  attempts: number,
+  delayMs: number,
+): Promise<void> {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      await mongoose.connect(uri, dbConfig.options)
+      log.info({}, 'MongoDB connected')
+      return
+    } catch (err) {
+      log.warn({ attempt: i, maxAttempts: attempts }, 'MongoDB connection failed')
+      if (i === attempts) throw err
+      await new Promise((r) => setTimeout(r, delayMs))
+    }
+  }
+}
+
+async function bootstrap(): Promise<void> {
+  try {
+    // Connect to MongoDB with retry, fall back to Atlas URI if primary fails
+    try {
+      await connectWithRetry(dbConfig.uri, dbConfig.retryAttempts, dbConfig.retryDelayMs)
+    } catch (primaryErr) {
+      const fallbackUri = env.DB_FALLBACK_URI
+      if (fallbackUri) {
+        log.warn({}, 'Primary MongoDB unreachable — falling back to Atlas URI')
+        await mongoose.connect(fallbackUri, dbConfig.options)
+        log.info({}, 'MongoDB connected via fallback Atlas URI')
+      } else {
+        throw primaryErr
+      }
+    }
+
+    // Start background purge job for jti blacklist
+    blacklistService.startPurgeJob()
+
+    // Create Express app + HTTP server
+    const { server } = createApp()
+
+    // Attach Socket.io (Phase 3 handlers wired here)
+    await initializeSocketEngine(server)
+
+    const port = Number(env.PORT)
+    const host = '0.0.0.0'
+
+    server.listen(port, host, () => {
+      log.info({ port, env: env.NODE_ENV }, 'Server started')
+    })
+
+    // ── Graceful shutdown ──────────────────────────────────────────────────
+    const shutdown = async (signal: string): Promise<void> => {
+      log.info({ signal }, 'Shutdown signal received')
+
+      server.close(async () => {
+        log.info({}, 'HTTP server closed')
+        try {
+          await mongoose.disconnect()
+          log.info({}, 'MongoDB disconnected')
+        } catch (err) {
+          log.error({ err }, 'Error disconnecting MongoDB')
+        }
+        process.exit(0)
+      })
+
+      // Force-kill after 30 s if graceful close hangs
+      setTimeout(() => {
+        log.error({}, 'Forced shutdown after timeout')
+        process.exit(1)
+      }, 30_000).unref()
+    }
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'))
+    process.on('SIGINT', () => shutdown('SIGINT'))
+
+    process.on('unhandledRejection', (reason: unknown) => {
+      log.error({ reason }, 'Unhandled promise rejection')
+      shutdown('unhandledRejection')
+    })
+
+    process.on('uncaughtException', (error: Error) => {
+      log.error({ err: error }, 'Uncaught exception')
+      shutdown('uncaughtException')
+    })
+  } catch (error) {
+    log.error({ err: error }, 'Fatal error during bootstrap')
+    process.exit(1)
+  }
+}
+
+bootstrap()

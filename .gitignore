@@ -1,0 +1,48 @@
+# v0 sandbox internal files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.snowflake/
+.v0-trash/
+.vercel/
+next.user-config.*
+
+# Environment variables
+.env*.local
+.env
+
+# Common ignores
+node_modules
+.next/
+.DS_Store
+
+# Kiro specs and internal documentation
+.kiro/
+.qodo/
+
+# Unnecessary documentation files
+AUDIT_REPORT.md
+VERIFICATION_CHECKLIST.md
+SETUP_SUMMARY.md
+QUICK_START.md
+DOCKER_SETUP.md
+GEOCODING_SETUP.md
+PRODUCTION_CHECKLIST.md
+deploy.sh
+
+# Reference files
+app/(auth)/login/ref.html
+
+# Build artifacts
+.dist/
+dist/
+backend/dist/
+*.log
+*.tgz
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db

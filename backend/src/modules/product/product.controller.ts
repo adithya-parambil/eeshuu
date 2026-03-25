@@ -1,0 +1,53 @@
+import { Request, Response } from 'express'
+import { asyncHandler } from '../../utils/async-handler'
+import { ApiResponse } from '../../utils/response-builder'
+import { createProductUseCase } from '../../use-cases/product/create-product.use-case'
+import { getProductUseCase } from '../../use-cases/product/get-product.use-case'
+import { listProductsUseCase } from '../../use-cases/product/list-products.use-case'
+import { productWriteRepo } from '../../repositories/write/product.write-repo'
+import { cacheService } from '../../utils/cache-service'
+import { NotFoundError } from '../../utils/app-error'
+
+export const productController = {
+  listProducts: asyncHandler(async (req: Request, res: Response) => {
+    const result = await listProductsUseCase.execute(
+      req.query as Record<string, string>,
+      { requestId: req.id },
+    )
+    res.status(200).json(
+      ApiResponse.success(result.items, {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: Math.ceil(result.total / result.limit),
+      }),
+    )
+  }),
+
+  getProduct: asyncHandler(async (req: Request, res: Response) => {
+    const product = await getProductUseCase.execute(
+      req.params.productId,
+      { requestId: req.id },
+    )
+    res.status(200).json(ApiResponse.success(product))
+  }),
+
+  createProduct: asyncHandler(async (req: Request, res: Response) => {
+    const product = await createProductUseCase.execute(req.body, { requestId: req.id })
+    res.status(201).json(ApiResponse.success(product))
+  }),
+
+  updateProduct: asyncHandler(async (req: Request, res: Response) => {
+    const updated = await productWriteRepo.update(req.params.productId, req.body)
+    if (!updated) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND')
+    await cacheService.invalidatePattern('products:list:')
+    res.status(200).json(ApiResponse.success(updated))
+  }),
+
+  deleteProduct: asyncHandler(async (req: Request, res: Response) => {
+    const deleted = await productWriteRepo.delete(req.params.productId)
+    if (!deleted) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND')
+    await cacheService.invalidatePattern('products:list:')
+    res.status(200).json(ApiResponse.success({ deleted: true }))
+  }),
+}

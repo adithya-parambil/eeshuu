@@ -5,6 +5,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Install wget for health checks
+RUN apk add --no-cache wget
+
 # Non-root user — never run production containers as root
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 

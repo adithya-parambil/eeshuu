@@ -5,7 +5,7 @@ WORKDIR /app
 
 COPY package*.json ./
 # Use npm ci for reproducible installs; pnpm-lock present but npm is fine for Docker
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # ─── Stage 2: Build ───────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder

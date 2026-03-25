@@ -1,17 +1,5 @@
-# ─── Stage 1: Build ───────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci
-
-COPY tsconfig.json ./
-COPY src ./src
-RUN npm run build
-
-# ─── Stage 2: Production image ────────────────────────────────────────────────
-FROM node:20-alpine AS runner
+# ─── Production image with tsx for TypeScript execution ──────────────────────
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -20,12 +8,13 @@ ENV NODE_ENV=production
 # Non-root user — never run production containers as root
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Install only production deps
+# Install all dependencies (including tsx for TS execution)
 COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci && npm cache clean --force
 
-# Copy compiled output from builder
-COPY --from=builder /app/dist ./dist
+# Copy source code and config
+COPY tsconfig.json ./
+COPY src ./src
 
 # Drop privileges before starting the process
 USER appuser
@@ -36,4 +25,4 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -qO- http://localhost:5000/health/live || exit 1
 
-CMD ["node", "dist/server.js"]
+CMD ["npx", "tsx", "src/server.ts"]

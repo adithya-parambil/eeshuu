@@ -36,8 +36,11 @@ services:
     environment:
       - NODE_ENV=production
       - MONGO_URI=mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/quickcommerce?authSource=admin
+      - REDIS_URL=redis://redis:6379
     depends_on:
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - app-network
@@ -81,22 +84,26 @@ services:
     networks:
       - app-network
 
-  # ── Redis (optional — uncomment to enable multi-instance Socket.io scaling) ──
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: redis
-  #   restart: unless-stopped
-  #   command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
-  #   volumes:
-  #     - redis-data:/data
-  #   networks:
-  #     - app-network
-  #   # To enable: uncomment this block and set REDIS_URL=redis://redis:6379 in .env
+  # ── Redis (Socket.io adapter for horizontal scaling) ─────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
 # ── Volumes ───────────────────────────────────────────────────────────────────
 volumes:
   mongo-data:
-  # redis-data:   # uncomment with redis service
+  redis-data:
 
 # ── Network ───────────────────────────────────────────────────────────────────
 networks:

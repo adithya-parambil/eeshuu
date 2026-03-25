@@ -28,7 +28,10 @@ QUICK_START.md
 DOCKER_SETUP.md
 GEOCODING_SETUP.md
 PRODUCTION_CHECKLIST.md
-deploy.sh
+
+# Deployment scripts are now INCLUDED (removed from gitignore)
+# setup-ec2.sh
+# deploy.sh
 
 # Reference files
 app/(auth)/login/ref.html

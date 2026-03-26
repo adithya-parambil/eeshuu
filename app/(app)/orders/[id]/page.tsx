@@ -32,7 +32,7 @@ export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const {
-    activeOrder, setActiveOrder, updateOrderStatus,
+    activeOrder, setActiveOrder, updateOrderInList,
     partnerCoords: storedPartnerCoords, setPartnerCoords,
     showDeliveredPopup, setShowDeliveredPopup,
   } = useCustomerStore()
@@ -121,30 +121,6 @@ export default function OrderDetailPage() {
     }
     window.addEventListener('partner-location', locationHandler as EventListener)
 
-    // Handle order cancelled while customer is on this page
-    const cancelHandler = (payload: { orderId: string }) => {
-      if (payload.orderId === id) {
-        updateOrderStatus(id, 'CANCELLED')
-        toast.error('Your order has been cancelled')
-        setPartnerCoordsLocal(null)
-        setPartnerCoords(null)
-      }
-    }
-    socket.on('v1:ORDER:CANCELLED', cancelHandler)
-
-    // Handle order status updates (especially DELIVERED)
-    const statusHandler = (payload: { orderId: string; status: string }) => {
-      if (payload.orderId === id) {
-        updateOrderStatus(id, payload.status)
-        if (payload.status === 'DELIVERED') {
-          setShowDeliveredPopup(true)
-          setPartnerCoordsLocal(null)
-          setPartnerCoords(null)
-        }
-      }
-    }
-    socket.on('v1:ORDER:STATUS_UPDATED', statusHandler)
-
     // Handle partner going offline — show stale indicator
     const offlineHandler = (payload: { partnerId: string }) => {
       setPartnerOffline(true)
@@ -162,8 +138,6 @@ export default function OrderDetailPage() {
     return () => {
       socket.emit('leave:order', { orderId: id })
       window.removeEventListener('partner-location', locationHandler as EventListener)
-      socket.off('v1:ORDER:CANCELLED', cancelHandler)
-      socket.off('v1:ORDER:STATUS_UPDATED', statusHandler)
       socket.off('v1:PARTNER:OFFLINE', offlineHandler)
       socket.off('v1:PARTNER:ONLINE', onlineHandler)
     }
@@ -174,7 +148,7 @@ export default function OrderDetailPage() {
     setCancelling(true)
     try {
       await ordersApi.cancel(id, cancelReason.trim())
-      updateOrderStatus(id, 'CANCELLED')
+      updateOrderInList(id, { status: 'CANCELLED' })
       setShowCancelModal(false)
       toast.success('Order cancelled')
     } catch (err: any) {

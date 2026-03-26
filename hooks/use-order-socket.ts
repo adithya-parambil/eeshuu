@@ -23,8 +23,8 @@ const EVENTS = {
 
 export function useOrderSocket() {
   const user = useAuthStore((s) => s.user)
-  const { updateOrderStatus, setActiveOrder } = useCustomerStore()
-  const { addAvailableOrder, removeAvailableOrder, setActiveOrder: setDeliveryActive, updateActiveOrderStatus } = useDeliveryStore()
+  const { updateOrderInList, setActiveOrder } = useCustomerStore()
+  const { addAvailableOrder, removeAvailableOrder, setActiveOrder: setDeliveryActive, updateActiveOrder } = useDeliveryStore()
   const reconnectRef = useRef(false)
 
   useEffect(() => {
@@ -105,7 +105,10 @@ export function useOrderSocket() {
     socket.on(EVENTS.ORDER_ACCEPTED, (payload: OrderAcceptedPayload) => {
       if (isDuplicate(payload.eventId)) return
       if (user.role === 'customer') {
-        updateOrderStatus(payload.orderId, 'ACCEPTED')
+        updateOrderInList(payload.orderId, {
+          status: 'ACCEPTED',
+          deliveryPartnerId: { _id: payload.deliveryPartnerId, name: payload.partnerName } as any,
+        })
         toast.success('Your order was accepted by a delivery partner')
       }
       if (user.role === 'delivery') {
@@ -117,7 +120,7 @@ export function useOrderSocket() {
     socket.on(EVENTS.ORDER_STATUS_UPDATED, (payload: OrderStatusUpdatedPayload) => {
       if (isDuplicate(payload.eventId)) return
       if (user.role === 'customer') {
-        updateOrderStatus(payload.orderId, payload.status)
+        updateOrderInList(payload.orderId, { status: payload.status as any })
         const labels: Record<string, string> = {
           PICKED_UP: 'Order picked up',
           ON_THE_WAY: 'Order on the way',
@@ -130,7 +133,7 @@ export function useOrderSocket() {
         }
       }
       if (user.role === 'delivery') {
-        updateActiveOrderStatus(payload.status)
+        updateActiveOrder({ status: payload.status as any })
         const deliveryLabels: Record<string, string> = {
           PICKED_UP: 'Marked as picked up',
           ON_THE_WAY: 'Delivery started',
@@ -154,7 +157,7 @@ export function useOrderSocket() {
     socket.on(EVENTS.ORDER_CANCELLED, (payload: OrderCancelledPayload) => {
       if (isDuplicate(payload.eventId)) return
       if (user.role === 'customer') {
-        updateOrderStatus(payload.orderId, 'CANCELLED')
+        updateOrderInList(payload.orderId, { status: 'CANCELLED' })
         useCustomerStore.getState().setPartnerCoords(null)
         toast.error('Order cancelled', { description: payload.reason ?? undefined })
       }

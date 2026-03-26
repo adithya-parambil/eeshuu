@@ -31,7 +31,7 @@ interface CustomerState {
   setOrders: (orders: Order[], meta: ApiMeta) => void
   setOrdersLoading: (v: boolean) => void
   setActiveOrder: (order: Order | null) => void
-  updateOrderStatus: (orderId: string, status: string) => void
+  updateOrderInList: (orderId: string, patch: Partial<Order>) => void
   prependOrder: (order: Order) => void
   setPartnerCoords: (coords: { lat: number; lng: number } | null) => void
   setShowDeliveredPopup: (v: boolean) => void
@@ -81,11 +81,11 @@ export const useCustomerStore = create<CustomerState>()(
       setOrdersLoading: (v) => set({ ordersLoading: v }),
       setActiveOrder: (order) => set({ activeOrder: order }),
 
-      updateOrderStatus: (orderId, status) => {
+      updateOrderInList: (orderId, patch) => {
         set({
-          orders: get().orders.map((o) => o._id === orderId ? { ...o, status: status as Order['status'] } : o),
+          orders: get().orders.map((o) => o._id === orderId ? { ...o, ...patch } : o),
           activeOrder: get().activeOrder?._id === orderId
-            ? { ...get().activeOrder!, status: status as Order['status'] }
+            ? { ...get().activeOrder!, ...patch }
             : get().activeOrder,
         })
       },

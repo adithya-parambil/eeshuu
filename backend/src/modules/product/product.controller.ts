@@ -7,6 +7,7 @@ import { listProductsUseCase } from '../../use-cases/product/list-products.use-c
 import { productWriteRepo } from '../../repositories/write/product.write-repo'
 import { cacheService } from '../../utils/cache-service'
 import { NotFoundError } from '../../utils/app-error'
+import { productEventEmitter } from '../../utils/event-emitters'
 
 export const productController = {
   listProducts: asyncHandler(async (req: Request, res: Response) => {
@@ -34,6 +35,15 @@ export const productController = {
 
   createProduct: asyncHandler(async (req: Request, res: Response) => {
     const product = await createProductUseCase.execute(req.body, { requestId: req.id })
+    // Emit product.created event for real-time updates
+    productEventEmitter.emit('product.created', {
+      productId: product._id?.toString(),
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      stock: product.stock,
+      isActive: product.isActive,
+    })
     res.status(201).json(ApiResponse.success(product))
   }),
 
@@ -41,6 +51,15 @@ export const productController = {
     const updated = await productWriteRepo.update(req.params.productId, req.body)
     if (!updated) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND')
     await cacheService.invalidatePattern('products:list:')
+    // Emit product.updated event for real-time updates
+    productEventEmitter.emit('product.updated', {
+      productId: updated._id?.toString(),
+      name: updated.name,
+      category: updated.category,
+      price: updated.price,
+      stock: updated.stock,
+      isActive: updated.isActive,
+    })
     res.status(200).json(ApiResponse.success(updated))
   }),
 
@@ -48,6 +67,10 @@ export const productController = {
     const deleted = await productWriteRepo.delete(req.params.productId)
     if (!deleted) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND')
     await cacheService.invalidatePattern('products:list:')
+    // Emit product.deleted event for real-time updates
+    productEventEmitter.emit('product.deleted', {
+      productId: req.params.productId,
+    })
     res.status(200).json(ApiResponse.success({ deleted: true }))
   }),
 }

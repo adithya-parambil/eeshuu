@@ -7,20 +7,26 @@ import type { OrderStatus, OrderItem, DeliveryAddress } from '../../types/global
 // Client declares supported versions in handshake: auth.versions: ['v1']
 export const EVENTS = {
   // Server → Client
-  ORDER_NEW:            'v1:ORDER:NEW',
-  ORDER_ACCEPTED:       'v1:ORDER:ACCEPTED',
+  ORDER_NEW: 'v1:ORDER:NEW',
+  ORDER_ACCEPTED: 'v1:ORDER:ACCEPTED',
   ORDER_STATUS_UPDATED: 'v1:ORDER:STATUS_UPDATED',
-  ORDER_CANCELLED:      'v1:ORDER:CANCELLED',
-  PARTNER_ONLINE:       'v1:PARTNER:ONLINE',
-  PARTNER_OFFLINE:      'v1:PARTNER:OFFLINE',
-  SYSTEM_ERROR:         'v1:SYSTEM:ERROR',
+  ORDER_CANCELLED: 'v1:ORDER:CANCELLED',
+  PARTNER_ONLINE: 'v1:PARTNER:ONLINE',
+  PARTNER_OFFLINE: 'v1:PARTNER:OFFLINE',
+  SYSTEM_ERROR: 'v1:SYSTEM:ERROR',
   // Client → Server
-  ORDER_ACCEPT:         'v1:ORDER:ACCEPT',
-  ORDER_UPDATE_STATUS:  'v1:ORDER:UPDATE_STATUS',
-  PARTNER_STATUS:       'v1:PARTNER:STATUS',
-  PARTNER_LOCATION:     'v1:PARTNER:LOCATION',
+  ORDER_ACCEPT: 'v1:ORDER:ACCEPT',
+  ORDER_UPDATE_STATUS: 'v1:ORDER:UPDATE_STATUS',
+  PARTNER_STATUS: 'v1:PARTNER:STATUS',
+  PARTNER_LOCATION: 'v1:PARTNER:LOCATION',
   // Server → Client
   ORDER_LOCATION_UPDATED: 'v1:ORDER:LOCATION_UPDATED',
+  // Product events
+  PRODUCT_CREATED: 'v1:PRODUCT:CREATED',
+  PRODUCT_UPDATED: 'v1:PRODUCT:UPDATED',
+  PRODUCT_DELETED: 'v1:PRODUCT:DELETED',
+  // Wallet events
+  WALLET_UPDATED: 'v1:WALLET:UPDATED',
 } as const
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS]
@@ -77,6 +83,37 @@ export interface PartnerLocationPayload extends BaseEventPayload {
   accuracy?: number
 }
 
+// Product payloads
+export interface ProductCreatedPayload extends BaseEventPayload {
+  productId: string
+  name: string
+  category: string
+  price: number
+  stock: number
+  isActive: boolean
+}
+
+export interface ProductUpdatedPayload extends BaseEventPayload {
+  productId: string
+  name: string
+  category: string
+  price: number
+  stock: number
+  isActive: boolean
+}
+
+export interface ProductDeletedPayload extends BaseEventPayload {
+  productId: string
+}
+
+// Wallet payloads
+export interface WalletUpdatedPayload extends BaseEventPayload {
+  userId: string
+  balance: number
+  delta: number
+  type: string
+}
+
 // ─── buildEvent — always use this, never hand-build payloads ─────────────────
 // Guarantees every emitted event carries version, eventId, and timestamp.
 /**
@@ -102,8 +139,8 @@ export function buildEvent<T extends object>(partialPayload: T): T & BaseEventPa
 
 // ─── Room naming conventions ──────────────────────────────────────────────────
 export const RoomPatterns = {
-  USER:     (userId: string)  => `user:${userId}`,
-  ORDER:    (orderId: string) => `order:${orderId}`,
-  DELIVERY: ()                => 'delivery:pool',
-  ADMIN:    ()                => 'admin:dashboard',
+  USER: (userId: string) => `user:${userId}`,
+  ORDER: (orderId: string) => `order:${orderId}`,
+  DELIVERY: () => 'delivery:pool',
+  ADMIN: () => 'admin:dashboard',
 }

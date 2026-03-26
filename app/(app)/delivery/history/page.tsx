@@ -9,6 +9,11 @@ import { ordersApi } from '@/lib/api/orders'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import type { Order, ApiMeta } from '@/types'
+import { connectSocket, disconnectSocket, isDuplicate } from '@/lib/socket/socket-client'
+
+const EVENTS = {
+  ORDER_STATUS_UPDATED: 'v1:ORDER:STATUS_UPDATED',
+}
 
 export default function DeliveryHistoryPage() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -27,6 +32,25 @@ export default function DeliveryHistoryPage() {
   }, [page])
 
   useEffect(() => { fetch() }, [fetch])
+
+  // Real-time delivery updates
+  useEffect(() => {
+    const socket = connectSocket('/order')
+
+    socket.off(EVENTS.ORDER_STATUS_UPDATED)
+
+    socket.on(EVENTS.ORDER_STATUS_UPDATED, (payload: { orderId: string; status: string; eventId: string }) => {
+      if (isDuplicate(payload.eventId)) return
+      // If an order was delivered, refetch the history
+      if (payload.status === 'DELIVERED') {
+        fetch()
+      }
+    })
+
+    return () => {
+      disconnectSocket('/order')
+    }
+  }, [fetch])
 
   return (
     <AppShell allowedRoles={['delivery']}>

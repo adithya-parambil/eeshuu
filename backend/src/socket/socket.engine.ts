@@ -6,6 +6,7 @@ import { socketConfig } from '../config/modules/socket.config'
 import { socketAuthMiddleware, createSocketRateLimiter } from './middleware/socket-auth.middleware'
 import { setupRedisAdapter } from './adapters/redis.adapter'
 import { setupOrderNamespace } from './namespaces/order.namespace'
+import { setupWalletNamespace } from './namespaces/wallet.namespace'
 import { setupNotificationsNamespace } from './namespaces/notifications.namespace'
 import { setupAdminNamespace } from './namespaces/admin.namespace'
 import { redisConfig } from '../config/modules/redis.config'
@@ -45,6 +46,7 @@ export async function initializeSocketEngine(server: HTTPServer): Promise<Socket
 
   // ── Namespaces ─────────────────────────────────────────────────────────
   setupOrderNamespace(io)
+  setupWalletNamespace(io)
   setupNotificationsNamespace(io)
   setupAdminNamespace(io)
 

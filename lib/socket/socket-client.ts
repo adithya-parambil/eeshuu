@@ -6,7 +6,7 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? 'http://localhost'
 // ─── Singleton sockets per namespace ─────────────────────────────────────────
 const sockets: Map<string, Socket> = new Map()
 
-export function getSocket(namespace: '/order' | '/admin' | '/notifications'): Socket {
+export function getSocket(namespace: '/order' | '/admin' | '/notifications' | '/wallet'): Socket {
   if (sockets.has(namespace)) return sockets.get(namespace)!
 
   const socket = io(`${SOCKET_URL}${namespace}`, {
@@ -23,7 +23,7 @@ export function getSocket(namespace: '/order' | '/admin' | '/notifications'): So
   return socket
 }
 
-export function connectSocket(namespace: '/order' | '/admin' | '/notifications') {
+export function connectSocket(namespace: '/order' | '/admin' | '/notifications' | '/wallet') {
   const socket = getSocket(namespace)
   // Refresh token before connecting
   socket.auth = { token: tokenStore.getAccess() ?? '', versions: ['v1'] }
@@ -31,7 +31,7 @@ export function connectSocket(namespace: '/order' | '/admin' | '/notifications')
   return socket
 }
 
-export function disconnectSocket(namespace: '/order' | '/admin' | '/notifications') {
+export function disconnectSocket(namespace: '/order' | '/admin' | '/notifications' | '/wallet') {
   const socket = sockets.get(namespace)
   if (socket) {
     socket.disconnect()

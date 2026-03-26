@@ -16,7 +16,7 @@ interface DeliveryState {
   addAvailableOrder: (order: Order) => void
   removeAvailableOrder: (orderId: string) => void
   setActiveOrder: (order: Order | null) => void
-  updateActiveOrderStatus: (status: string) => void
+  updateActiveOrder: (patch: Partial<Order>) => void
   setLoading: (v: boolean) => void
   setOnline: (v: boolean) => void
   setPartnerCoords: (coords: { lat: number; lng: number } | null) => void
@@ -55,9 +55,9 @@ export const useDeliveryStore = create<DeliveryState>()(
 
       setActiveOrder: (order) => set({ activeOrder: order }),
 
-      updateActiveOrderStatus: (status) => {
+      updateActiveOrder: (patch) => {
         const active = get().activeOrder
-        if (active) set({ activeOrder: { ...active, status: status as Order['status'] } })
+        if (active) set({ activeOrder: { ...active, ...patch } })
       },
 
       setLoading: (v) => set({ isLoading: v }),

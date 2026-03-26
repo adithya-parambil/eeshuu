@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Wallet, Minus, Loader2, IndianRupee, ArrowDownLeft, ArrowUpRight, Package } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
@@ -8,6 +8,11 @@ import { useAuthStore } from '@/store/auth.store'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { WalletTransaction } from '@/types'
+import { connectSocket, disconnectSocket, isDuplicate } from '@/lib/socket/socket-client'
+
+const EVENTS = {
+  WALLET_UPDATED: 'v1:WALLET:UPDATED',
+}
 
 const spring = { type: 'spring' as const, stiffness: 280, damping: 28 }
 
@@ -31,14 +36,49 @@ export default function WalletPage() {
   const [customAmount, setCustomAmount] = useState('')
   const [processing, setProcessing] = useState(false)
 
-  useEffect(() => {
-    Promise.all([
-      walletApi.getBalance().then((r) => setBalance(r.data.data.balance)),
-      walletApi.getTransactions().then((r) => setTransactions(r.data.data)),
-    ])
-      .catch(() => {})
-      .finally(() => setLoading(false))
+  const fetchData = useCallback(async () => {
+    try {
+      const [balanceRes, txRes] = await Promise.all([
+        walletApi.getBalance(),
+        walletApi.getTransactions(),
+      ])
+      setBalance(balanceRes.data.data.balance)
+      setTransactions(txRes.data.data)
+    } catch { /* ignore */ }
+    finally { setLoading(false) }
   }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Real-time wallet updates
+  useEffect(() => {
+    if (!user || user.role !== 'delivery') return
+
+    const socket = connectSocket('/wallet')
+
+    socket.off(EVENTS.WALLET_UPDATED)
+    socket.off('connect')
+    socket.off('disconnect')
+
+    socket.on(EVENTS.WALLET_UPDATED, (payload: { userId: string; balance: number; eventId: string }) => {
+      if (isDuplicate(payload.eventId)) return
+      // Only update if this is for the current user
+      if (payload.userId === user.userId) {
+        setBalance(payload.balance)
+        // Refetch transaction history to show the new transaction
+        walletApi.getTransactions()
+          .then((r) => setTransactions(r.data.data))
+          .catch(() => { })
+        toast.success('Wallet balance updated')
+      }
+    })
+
+    return () => {
+      disconnectSocket('/wallet')
+    }
+  }, [user])
 
   const handleWithdraw = async (amount: number) => {
     if (!amount || amount <= 0) return
@@ -47,7 +87,7 @@ export default function WalletPage() {
       const r = await walletApi.withdraw(amount)
       setBalance(r.data.data.balance)
       // Refresh transactions
-      walletApi.getTransactions().then((r) => setTransactions(r.data.data)).catch(() => {})
+      walletApi.getTransactions().then((r) => setTransactions(r.data.data)).catch(() => { })
       toast.success(`₹${amount} withdrawn`)
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? 'Insufficient balance')
@@ -79,7 +119,7 @@ export default function WalletPage() {
       <div className="px-6 py-8 max-w-lg mx-auto">
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <h1 className="text-2xl font-bold text-white">Wallet</h1>
-          <p className="text-white/30 text-sm mt-0.5">Your earnings &amp; withdrawals</p>
+          <p className="text-white/30 text-sm mt-0.5">Your earnings & withdrawals</p>
         </motion.div>
 
         {/* Balance card */}

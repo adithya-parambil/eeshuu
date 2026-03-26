@@ -2,6 +2,7 @@ import mongoose from 'mongoose'
 import { UserModel, UserDocument } from '../models/user.model'
 import { WalletTransactionModel, type TxType } from '../models/wallet-transaction.model'
 import type { UserRole } from '../../types/global.types'
+import { walletEventEmitter } from '../../utils/event-emitters'
 
 export interface CreateUserData {
   name: string
@@ -85,6 +86,13 @@ export class UserWriteRepository {
         }],
         session ? { session } : {},
       )
+      // Emit wallet.updated event for real-time updates
+      walletEventEmitter.emit('wallet.updated', {
+        userId,
+        balance: updated.walletBalance,
+        delta,
+        type: opts?.type ?? (delta >= 0 ? 'COMMISSION' : 'WITHDRAWAL'),
+      })
     }
     return updated
   }
@@ -116,6 +124,13 @@ export class UserWriteRepository {
         }],
         session ? { session } : {},
       )
+      // Emit wallet.updated event for real-time updates
+      walletEventEmitter.emit('wallet.updated', {
+        userId,
+        balance: updated.walletBalance,
+        delta: -amount,
+        type: opts?.type ?? 'WITHDRAWAL',
+      })
     }
     return updated
   }

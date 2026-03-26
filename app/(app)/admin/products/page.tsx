@@ -6,6 +6,13 @@ import { AppShell } from '@/components/layout/app-shell'
 import { productsApi } from '@/lib/api/products'
 import { toast } from 'sonner'
 import type { Product, ApiMeta } from '@/types'
+import { connectSocket, disconnectSocket, isDuplicate } from '@/lib/socket/socket-client'
+
+const EVENTS = {
+  PRODUCT_CREATED: 'v1:PRODUCT:CREATED',
+  PRODUCT_UPDATED: 'v1:PRODUCT:UPDATED',
+  PRODUCT_DELETED: 'v1:PRODUCT:DELETED',
+}
 
 const spring = { type: 'spring' as const, stiffness: 280, damping: 28 }
 
@@ -36,14 +43,14 @@ function ProductFormModal({
   const [form, setForm] = useState<FormState>(
     isEdit
       ? {
-          name: product.name,
-          description: product.description ?? '',
-          price: String(product.price),
-          category: product.category,
-          stock: String(product.stock),
-          imageUrl: product.imageUrl ?? '',
-          isActive: product.isActive,
-        }
+        name: product.name,
+        description: product.description ?? '',
+        price: String(product.price),
+        category: product.category,
+        stock: String(product.stock),
+        imageUrl: product.imageUrl ?? '',
+        isActive: product.isActive,
+      }
       : EMPTY_FORM,
   )
   const [saving, setSaving] = useState(false)
@@ -263,6 +270,45 @@ export default function AdminProductsPage() {
   }, [page, search])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
+
+  // Real-time product updates
+  useEffect(() => {
+    const socket = connectSocket('/admin')
+
+    socket.off(EVENTS.PRODUCT_CREATED)
+    socket.off(EVENTS.PRODUCT_UPDATED)
+    socket.off(EVENTS.PRODUCT_DELETED)
+
+    socket.on(EVENTS.PRODUCT_CREATED, (payload: { productId: string; eventId: string }) => {
+      if (isDuplicate(payload.eventId)) return
+      // Refetch to get the new product
+      fetchProducts()
+      toast.success('New product created')
+    })
+
+    socket.on(EVENTS.PRODUCT_UPDATED, (payload: { productId: string; eventId: string }) => {
+      if (isDuplicate(payload.eventId)) return
+      // Update the product in the list if it exists
+      setProducts(prev => prev.map(p =>
+        p._id === payload.productId ? { ...p } : p
+      ))
+      // Refetch to get the latest data
+      fetchProducts()
+      toast.success('Product updated')
+    })
+
+    socket.on(EVENTS.PRODUCT_DELETED, (payload: { productId: string; eventId: string }) => {
+      if (isDuplicate(payload.eventId)) return
+      // Remove from list
+      setProducts(prev => prev.filter(p => p._id !== payload.productId))
+      if (meta) setMeta({ ...meta, total: meta.total - 1 })
+      toast.success('Product deleted')
+    })
+
+    return () => {
+      disconnectSocket('/admin')
+    }
+  }, [fetchProducts, meta])
 
   const openCreate = () => { setEditTarget(null); setModalOpen(true) }
   const openEdit = (p: Product) => { setEditTarget(p); setModalOpen(true) }

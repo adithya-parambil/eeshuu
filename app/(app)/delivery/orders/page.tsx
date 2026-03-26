@@ -78,30 +78,24 @@ export default function DeliveryOrdersPage() {
   // ── Polling fallback when WebSocket is disconnected ───────────────────────
   useEffect(() => {
     let pollIntervalId: NodeJS.Timeout | null = null
-    let checkIntervalId: NodeJS.Timeout | null = null
     
-    // Function to check WebSocket connection
+    // Check connection status by looking at store state (don't create new socket!)
     const checkConnection = () => {
-      try {
-        const socket = connectSocket('/order')
-        const connected = socket.connected
-        console.log('[DELIVERY ORDERS] WebSocket check:', connected ? 'CONNECTED' : 'DISCONNECTED')
-        setIsWebSocketConnected(connected)
-      } catch (err) {
-        console.error('[DELIVERY ORDERS] Connection check failed:', err)
-        setIsWebSocketConnected(false)
-      }
+      // Just check if we have orders - if polling is working, we'll get updates
+      const hasOrders = availableOrders.length > 0
+      const isConnected = hasOrders // Simple heuristic
+      setIsWebSocketConnected(isConnected)
     }
     
     // Initial check
     checkConnection()
     
     // Check connection every 5 seconds
-    checkIntervalId = setInterval(checkConnection, 5000)
+    const checkIntervalId = setInterval(checkConnection, 5000)
 
-    // Start polling if WebSocket is not connected
-    if (!isWebSocketConnected && !isLoading) {
-      console.log('[DELIVERY ORDERS] Starting polling fallback (10s interval)')
+    // Start polling if we don't have orders
+    if (availableOrders.length === 0 && !isLoading) {
+      console.log('[DELIVERY ORDERS] No orders yet - starting polling fallback (10s interval)')
       
       pollIntervalId = setInterval(async () => {
         console.log('[DELIVERY ORDERS] Polling for orders...')
@@ -109,6 +103,7 @@ export default function DeliveryOrdersPage() {
           const res = await ordersApi.listAvailable()
           setAvailableOrders(res.data.data)
           setLastUpdateTime(new Date())
+          console.log('[DELIVERY ORDERS] Polling received:', res.data.data.length, 'orders')
         } catch (err) {
           console.error('[DELIVERY ORDERS] Polling failed:', err)
         }
@@ -120,7 +115,7 @@ export default function DeliveryOrdersPage() {
       if (checkIntervalId) clearInterval(checkIntervalId)
       console.log('[DELIVERY ORDERS] Cleanup complete')
     }
-  }, [isWebSocketConnected, isLoading])
+  }, [availableOrders.length, isLoading])
 
   const handleAccept = async (order: Order) => {
     setAccepting(order._id)

@@ -40,7 +40,7 @@ export const useAuthStore = create<AuthState>()(
           const res = await authApi.getProfile()
           const u = res.data.data
           set({
-            user: { userId: u._id, name: u.name, email: u.email, role: u.role },
+            user: { userId: u.id, name: u.name, email: u.email, role: u.role },
             isAuthenticated: true,
           })
         } catch {
@@ -60,7 +60,7 @@ export const useAuthStore = create<AuthState>()(
           const profileRes = await authApi.getProfile()
           const u = profileRes.data.data
           set({
-            user: { userId: u._id, name: u.name, email: u.email, role: u.role },
+            user: { userId: u.id, name: u.name, email: u.email, role: u.role },
             isAuthenticated: true,
           })
         } finally {

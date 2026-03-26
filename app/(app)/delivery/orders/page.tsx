@@ -74,21 +74,33 @@ export default function DeliveryOrdersPage() {
 
   // ── Polling fallback when WebSocket is disconnected ───────────────────────
   useEffect(() => {
-    // Check WebSocket connection status
+    let pollIntervalId: NodeJS.Timeout | null = null
+    let checkIntervalId: NodeJS.Timeout | null = null
+    
+    // Function to check WebSocket connection
     const checkConnection = () => {
-      const socket = connectSocket('/order')
-      setIsWebSocketConnected(socket.connected)
+      try {
+        const socket = connectSocket('/order')
+        const connected = socket.connected
+        console.log('[DELIVERY ORDERS] WebSocket check:', connected ? 'CONNECTED' : 'DISCONNECTED')
+        setIsWebSocketConnected(connected)
+      } catch (err) {
+        console.error('[DELIVERY ORDERS] Connection check failed:', err)
+        setIsWebSocketConnected(false)
+      }
     }
     
+    // Initial check
     checkConnection()
-    const checkInterval = setInterval(checkConnection, 5000) // Check every 5 seconds
+    
+    // Check connection every 5 seconds
+    checkIntervalId = setInterval(checkConnection, 5000)
 
     // Start polling if WebSocket is not connected
     if (!isWebSocketConnected && !isLoading) {
-      console.log('[DELIVERY ORDERS] WebSocket not connected - starting polling fallback')
+      console.log('[DELIVERY ORDERS] Starting polling fallback (10s interval)')
       
-      // Poll every 10 seconds when disconnected
-      pollIntervalRef.current = setInterval(async () => {
+      pollIntervalId = setInterval(async () => {
         console.log('[DELIVERY ORDERS] Polling for orders...')
         try {
           const res = await ordersApi.listAvailable()
@@ -97,22 +109,13 @@ export default function DeliveryOrdersPage() {
         } catch (err) {
           console.error('[DELIVERY ORDERS] Polling failed:', err)
         }
-      }, 10000) // Poll every 10 seconds
-    } else {
-      // Clear polling interval when WebSocket is connected
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
-        pollIntervalRef.current = null
-        console.log('[DELIVERY ORDERS] WebSocket connected - stopping polling')
-      }
+      }, 10000)
     }
 
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
-        pollIntervalRef.current = null
-      }
-      clearInterval(checkInterval)
+      if (pollIntervalId) clearInterval(pollIntervalId)
+      if (checkIntervalId) clearInterval(checkIntervalId)
+      console.log('[DELIVERY ORDERS] Cleanup complete')
     }
   }, [isWebSocketConnected, isLoading])
 
@@ -184,9 +187,12 @@ export default function DeliveryOrdersPage() {
         {/* Live indicator */}
         <div className="flex items-center gap-2 mb-6">
           <span className="w-2 h-2 rounded-full pulse-dot" style={{ background: isWebSocketConnected ? 'var(--acid)' : '#ef4444' }} />
-          <span className="text-white/30 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
-            {isWebSocketConnected ? 'Live feed — updates in real time' : 'Polling for updates...'}
-          </span>
+          
+          {!isWebSocketConnected && (
+            <span className="text-[10px] text-white/20 ml-1">
+              (Last: {lastUpdateTime.toLocaleTimeString()})
+            </span>
+          )}
         </div>
 
         {/* Orders */}

@@ -9,7 +9,6 @@ import { CartDrawer } from '@/components/molecules/cart-drawer'
 import { SkeletonCard } from '@/components/atoms/skeleton-card'
 import { CounterBadge } from '@/components/atoms/counter-badge'
 import { useCustomerStore } from '@/store/customer.store'
-import { useOrderSocket } from '@/hooks/use-order-socket'
 import { productsApi } from '@/lib/api/products'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -261,7 +260,6 @@ function Pagination({
    MAIN PAGE
    ═══════════════════════════════════════════════════════════════════════════ */
 export default function DashboardPage() {
-  useOrderSocket()
   const { products, productsMeta, productsLoading, setProducts, setProductsLoading, cart } =
     useCustomerStore()
   const [cartOpen, setCartOpen] = useState(false)

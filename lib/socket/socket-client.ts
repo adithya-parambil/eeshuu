@@ -6,6 +6,10 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? 'http://localhost'
 // ─── Singleton sockets per namespace ─────────────────────────────────────────
 const sockets: Map<string, Socket> = new Map()
 
+function applyLatestAuth(socket: Socket) {
+  socket.auth = { token: tokenStore.getAccess() ?? '', versions: ['v1'] }
+}
+
 export function getSocket(namespace: '/order' | '/admin' | '/notifications' | '/wallet'): Socket {
   if (sockets.has(namespace)) return sockets.get(namespace)!
 
@@ -19,14 +23,17 @@ export function getSocket(namespace: '/order' | '/admin' | '/notifications' | '/
     reconnectionDelayMax: 5000,
   })
 
+  socket.on('reconnect_attempt', () => {
+    applyLatestAuth(socket)
+  })
+
   sockets.set(namespace, socket)
   return socket
 }
 
 export function connectSocket(namespace: '/order' | '/admin' | '/notifications' | '/wallet') {
   const socket = getSocket(namespace)
-  // Refresh token before connecting
-  socket.auth = { token: tokenStore.getAccess() ?? '', versions: ['v1'] }
+  applyLatestAuth(socket)
   if (!socket.connected) socket.connect()
   return socket
 }
@@ -52,4 +59,14 @@ export function isDuplicate(eventId: string): boolean {
   if (seenEventIds.has(eventId)) return true
   seenEventIds.set(eventId, now)
   return false
+}
+
+export function refreshAllSocketsAuth() {
+  for (const [, socket] of sockets) {
+    applyLatestAuth(socket)
+    if (socket.connected) {
+      socket.disconnect()
+      socket.connect()
+    }
+  }
 }

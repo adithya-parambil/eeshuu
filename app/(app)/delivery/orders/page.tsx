@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Package, MapPin, Clock, Loader2, Wifi, WifiOff } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
@@ -20,6 +20,8 @@ export default function DeliveryOrdersPage() {
   const { availableOrders, setAvailableOrders, removeAvailableOrder, setActiveOrder, isLoading, setLoading, isOnline, setOnline } = useDeliveryStore()
   const [accepting, setAccepting] = useState<string | null>(null)
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date())
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false)
+  const pollIntervalRef = useRef<number | null>(null)
 
   // ── Request location permission on mount for delivery partners ──────────────
   useEffect(() => {
@@ -51,9 +53,6 @@ export default function DeliveryOrdersPage() {
   }, [])
 
   // ── Initial fetch of available orders ──────────────────────────────────────
-  // NOTE: pool re-join and active-order refetch are handled entirely by
-  // useOrderSocket (via the socket.connected early-fire path). No need to
-  // emit PARTNER:STATUS here anymore.
   useEffect(() => {
     const fetchOrders = async () => {
       setLoading(true)
@@ -72,6 +71,50 @@ export default function DeliveryOrdersPage() {
     console.log('[DELIVERY ORDERS] Available orders updated:', availableOrders.length, 'orders')
     setLastUpdateTime(new Date())
   }, [availableOrders])
+
+  // ── Polling fallback when WebSocket is disconnected ───────────────────────
+  useEffect(() => {
+    // Check WebSocket connection status
+    const checkConnection = () => {
+      const socket = connectSocket('/order')
+      setIsWebSocketConnected(socket.connected)
+    }
+    
+    checkConnection()
+    const checkInterval = setInterval(checkConnection, 5000) // Check every 5 seconds
+
+    // Start polling if WebSocket is not connected
+    if (!isWebSocketConnected && !isLoading) {
+      console.log('[DELIVERY ORDERS] WebSocket not connected - starting polling fallback')
+      
+      // Poll every 10 seconds when disconnected
+      pollIntervalRef.current = setInterval(async () => {
+        console.log('[DELIVERY ORDERS] Polling for orders...')
+        try {
+          const res = await ordersApi.listAvailable()
+          setAvailableOrders(res.data.data)
+          setLastUpdateTime(new Date())
+        } catch (err) {
+          console.error('[DELIVERY ORDERS] Polling failed:', err)
+        }
+      }, 10000) // Poll every 10 seconds
+    } else {
+      // Clear polling interval when WebSocket is connected
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+        console.log('[DELIVERY ORDERS] WebSocket connected - stopping polling')
+      }
+    }
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+      clearInterval(checkInterval)
+    }
+  }, [isWebSocketConnected, isLoading])
 
   const handleAccept = async (order: Order) => {
     setAccepting(order._id)
@@ -140,8 +183,10 @@ export default function DeliveryOrdersPage() {
 
         {/* Live indicator */}
         <div className="flex items-center gap-2 mb-6">
-          <span className="w-2 h-2 rounded-full pulse-dot" style={{ background: 'var(--acid)' }} />
-          <span className="text-white/30 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>Live feed — updates in real time</span>
+          <span className="w-2 h-2 rounded-full pulse-dot" style={{ background: isWebSocketConnected ? 'var(--acid)' : '#ef4444' }} />
+          <span className="text-white/30 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
+            {isWebSocketConnected ? 'Live feed — updates in real time' : 'Polling for updates...'}
+          </span>
         </div>
 
         {/* Orders */}

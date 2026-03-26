@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { tokenStore } from '@/lib/token-store'
 import { authApi } from '@/lib/api/auth'
+import { refreshAllSocketsAuth, disconnectAllSockets } from '@/lib/socket/socket-client'
 import type { AuthUser } from '@/types'
 
 interface AuthState {
@@ -54,6 +55,7 @@ export const useAuthStore = create<AuthState>()(
           const res = await authApi.login({ email, password })
           const { accessToken, refreshToken } = res.data.data
           tokenStore.set(accessToken, refreshToken)
+          refreshAllSocketsAuth()
           // Fetch full profile — JWT payload only contains userId/role/jti, not name/email
           const profileRes = await authApi.getProfile()
           const u = profileRes.data.data
@@ -72,6 +74,7 @@ export const useAuthStore = create<AuthState>()(
           const res = await authApi.register(data)
           const { accessToken, refreshToken } = res.data.data
           tokenStore.set(accessToken, refreshToken)
+          refreshAllSocketsAuth()
           set({
             user: { userId: JSON.parse(atob(accessToken.split('.')[1])).userId, name: data.name, email: data.email, role: data.role },
             isAuthenticated: true,
@@ -83,6 +86,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: async () => {
         try { await authApi.logout() } catch { /* ignore */ }
+        disconnectAllSockets()
         tokenStore.clear()
         // Clear role-specific stores to prevent stale data bleeding between sessions
         const { useDeliveryStore } = await import('@/store/delivery.store')

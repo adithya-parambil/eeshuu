@@ -79,3 +79,12 @@ if (!subscribed) {
   })
   subscribed = true
 }
+
+export function disconnectAllSockets() {
+  for (const [, socket] of sockets) {
+    try {
+      socket.disconnect()
+    } catch {}
+  }
+  sockets.clear()
+}

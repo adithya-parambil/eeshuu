@@ -105,9 +105,18 @@ export function useOrderSocket() {
 
     // ── ORDER_NEW (delivery) ──────────────────────────────────────────────
     socket.on(EVENTS.ORDER_NEW, (payload: OrderNewPayload) => {
-      if (isDuplicate(payload.eventId)) return
-      console.log('[SOCKET] Received ORDER_NEW event:', payload)
+      console.log('[SOCKET] ========== ORDER_NEW RECEIVED ==========')
+      console.log('[SOCKET] Payload:', payload)
+      console.log('[SOCKET] User role:', user?.role)
+      console.log('[SOCKET] Socket connected:', socket.connected)
+      
+      if (isDuplicate(payload.eventId)) {
+        console.log('[SOCKET] Duplicate event, ignoring')
+        return
+      }
+      
       if (user.role === 'delivery') {
+        console.log('[SOCKET] Adding order to available orders...')
         addAvailableOrder({
           _id: payload.orderId,
           customerId: payload.customerId,
@@ -119,8 +128,10 @@ export function useOrderSocket() {
           createdAt: payload.timestamp,
           updatedAt: payload.timestamp,
         })
-        console.log('[SOCKET] Added order to available orders:', payload.orderId)
+        console.log('[SOCKET] Order added! Available orders count:', useDeliveryStore.getState().availableOrders.length)
         toast('New order available', { description: `₹${payload.totalAmount}` })
+      } else {
+        console.log('[SOCKET] User is not delivery role, ignoring')
       }
     })
 

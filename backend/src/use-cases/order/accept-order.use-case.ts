@@ -1,10 +1,10 @@
-import { EventEmitter } from 'events'
 import { orderWriteRepo } from '../../repositories/write/order.write-repo'
 import { orderReadRepo } from '../../repositories/read/order.read-repo'
 import { cacheService } from '../../utils/cache-service'
 import { log } from '../../utils/logger'
 import { metrics } from '../../utils/metrics'
 import { ConflictError } from '../../utils/app-error'
+import { orderEventEmitter } from '../../utils/order-event-emitter'
 import type { UseCaseContext } from '../../types/global.types'
 import type { OrderDocument } from '../../repositories/models/order.model'
 
@@ -14,7 +14,7 @@ export interface AcceptOrderDto {
 }
 
 export class AcceptOrderUseCase {
-  constructor(private readonly eventEmitter: EventEmitter = new EventEmitter()) {}
+  constructor(private readonly eventEmitter = orderEventEmitter) {}
 
   /**
    * Atomically claims an order for a delivery partner.
@@ -49,9 +49,17 @@ export class AcceptOrderUseCase {
     await cacheService.del(`order:${dto.orderId}`)
 
     // Emit internal event for the socket layer AFTER the DB write confirms
+    // Include customerId so order.namespace can broadcast to the customer's personal room
+    const customerId = order.customerId
+      ? (order.customerId as any)._id
+        ? String((order.customerId as any)._id)
+        : String(order.customerId)
+      : ''
     this.eventEmitter.emit('order.accepted', {
       orderId: dto.orderId,
       deliveryPartnerId: dto.deliveryPartnerId,
+      customerId,
+      partnerName: dto.deliveryPartnerId, // name not available here; namespace will use id
     })
 
     metrics.increment('socket_events_total', { event: 'ORDER_ACCEPT', result: 'success' })

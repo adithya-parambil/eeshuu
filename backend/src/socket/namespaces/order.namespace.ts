@@ -106,6 +106,60 @@ export function setupOrderNamespace(io: SocketIOServer): void {
     log.info({ orderId: payload.orderId }, 'v1:ORDER:CANCELLED emitted')
   })
 
+  // ── Fix: Listen for order.accepted → emit v1:ORDER:ACCEPTED ─────────────
+  // Covers the REST path: delivery partner accepts via HTTP, not via socket.
+  orderEventEmitter.on('order.accepted', (payload: {
+    orderId: string
+    deliveryPartnerId: string
+    customerId: string
+    partnerName: string
+  }) => {
+    const event = buildEvent<Omit<OrderAcceptedPayload, keyof BaseEventPayload>>({
+      orderId: payload.orderId,
+      deliveryPartnerId: payload.deliveryPartnerId,
+      partnerName: payload.partnerName ?? payload.deliveryPartnerId,
+    })
+    // Notify the customer in their personal room
+    broadcastToRoom(nsp, RoomPatterns.USER(payload.customerId), EVENTS.ORDER_ACCEPTED, event)
+    // Notify all parties tracking this specific order
+    broadcastToRoom(nsp, RoomPatterns.ORDER(payload.orderId), EVENTS.ORDER_ACCEPTED, event)
+    // Remove the order from the delivery pool
+    broadcastToRoom(nsp, RoomPatterns.DELIVERY(), EVENTS.ORDER_ACCEPTED, event)
+    // Mirror to admin dashboard
+    broadcastToRoom(adminNsp, RoomPatterns.ADMIN(), EVENTS.ORDER_ACCEPTED, event)
+    metrics.increment('socket_events_total', { event: 'ORDER_ACCEPTED', result: 'success' })
+    log.info({ orderId: payload.orderId }, 'v1:ORDER:ACCEPTED emitted via REST path')
+  })
+
+  // ── Fix: Listen for order.status_updated → emit v1:ORDER:STATUS_UPDATED ──
+  // Covers the REST path: delivery partner updates status via HTTP, not via socket.
+  orderEventEmitter.on('order.status_updated', (payload: {
+    orderId: string
+    status: string
+    actorId: string
+    updatedAt: Date | string
+    customerId: string
+  }) => {
+    const event = buildEvent<Omit<OrderStatusUpdatedPayload, keyof BaseEventPayload>>({
+      orderId: payload.orderId,
+      status: payload.status,
+      actorId: payload.actorId,
+      updatedAt: payload.updatedAt instanceof Date
+        ? payload.updatedAt.toISOString()
+        : String(payload.updatedAt),
+    })
+    broadcastToRoom(nsp, RoomPatterns.ORDER(payload.orderId), EVENTS.ORDER_STATUS_UPDATED, event)
+    if (payload.customerId) {
+      broadcastToRoom(nsp, RoomPatterns.USER(payload.customerId), EVENTS.ORDER_STATUS_UPDATED, event)
+    }
+    broadcastToRoom(adminNsp, RoomPatterns.ADMIN(), EVENTS.ORDER_STATUS_UPDATED, event)
+    if (payload.status === 'DELIVERED') {
+      deleteOrderLocation(payload.orderId).catch(() => {})
+    }
+    metrics.increment('socket_events_total', { event: 'ORDER_STATUS_UPDATED_REST', result: 'success' })
+    log.info({ orderId: payload.orderId, status: payload.status }, 'v1:ORDER:STATUS_UPDATED emitted via REST path')
+  })
+
   nsp.on('connection', (socket) => {
     const userId = socket.data.userId as string
     const role = socket.data.role as string

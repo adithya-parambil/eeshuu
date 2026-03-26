@@ -1,10 +1,11 @@
 import { z } from 'zod'
-import { EventEmitter } from 'events'
+
 import { NotFoundError, ForbiddenError } from '../../utils/app-error'
 import { orderWriteRepo } from '../../repositories/write/order.write-repo'
 import { userWriteRepo } from '../../repositories/write/user.write-repo'
 import { orderReadRepo } from '../../repositories/read/order.read-repo'
 import { orderService, PRICING } from '../../services/order.service'
+import { orderEventEmitter } from '../../utils/order-event-emitter'
 import { cacheService } from '../../utils/cache-service'
 import { withTransaction } from '../../utils/transaction'
 import { log } from '../../utils/logger'
@@ -20,7 +21,7 @@ export const UpdateStatusDto = z.object({
 export type UpdateStatusDtoType = z.infer<typeof UpdateStatusDto>
 
 export class UpdateOrderStatusUseCase {
-  constructor(private readonly eventEmitter: EventEmitter = new EventEmitter()) {}
+  constructor(private readonly eventEmitter = orderEventEmitter) {}
 
   async execute(
     dto: UpdateStatusDtoType,
@@ -79,6 +80,12 @@ export class UpdateOrderStatusUseCase {
       status: dto.status,
       actorId: ctx.actorId,
       updatedAt: updated.updatedAt,
+      // Resolve customerId to a plain string so namespace can broadcast to customer room
+      customerId: updated.customerId
+        ? (updated.customerId as any)._id
+          ? String((updated.customerId as any)._id)
+          : String(updated.customerId)
+        : '',
     })
 
     log.info(

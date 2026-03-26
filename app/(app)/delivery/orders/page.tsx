@@ -16,12 +16,15 @@ import type { Order } from '@/types'
 const spring = { type: 'spring' as const, stiffness: 280, damping: 28 }
 
 export default function DeliveryOrdersPage() {
+  console.log('[DELIVERY ORDERS PAGE] Component rendering...')
   useOrderSocket()
   const { availableOrders, setAvailableOrders, removeAvailableOrder, setActiveOrder, isLoading, setLoading, isOnline, setOnline } = useDeliveryStore()
   const [accepting, setAccepting] = useState<string | null>(null)
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date())
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false)
   const pollIntervalRef = useRef<number | null>(null)
+  
+  console.log('[DELIVERY ORDERS PAGE] Render complete. Available orders:', availableOrders?.length)
 
   // ── Request location permission on mount for delivery partners ──────────────
   useEffect(() => {

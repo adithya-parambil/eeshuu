@@ -26,6 +26,9 @@ import paymentRoutes from './modules/payment/payment.routes'
 export function createApp(): { app: Express; server: HTTPServer } {
   const app = express()
 
+  // ── Trust reverse proxy (sets req.ip from X-Forwarded-For) ─────────────────
+  app.set('trust proxy', 1)
+
   // ── 1. requestId — must be first so all subsequent logs carry it ──────────
   app.use(requestIdMiddleware)
 

@@ -4,10 +4,15 @@ import { v4 as uuidv4 } from 'uuid'
 
 export const ordersApi = {
   // Customer
-  place: (body: { items: { productId: string; quantity: number }[]; deliveryAddress: DeliveryAddress }) =>
-    apiClient.post<{ success: true; data: Order }>('/orders', body, {
-      headers: { 'Idempotency-Key': uuidv4() },
-    }),
+  place: (
+    body: { items: { productId: string; quantity: number }[]; deliveryAddress: DeliveryAddress },
+    idempotencyKey?: string,
+  ) =>
+    apiClient.post<{ success: true; data: Order }>(
+      '/orders',
+      body,
+      { headers: { 'Idempotency-Key': idempotencyKey ?? uuidv4() } },
+    ),
 
   list: (params?: { page?: number; limit?: number; status?: string }) =>
     apiClient.get<{ success: true; data: Order[]; meta: ApiMeta }>('/orders', { params }),

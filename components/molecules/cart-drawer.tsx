@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Minus, Plus, ShoppingCart, MapPin, Loader2, Trash2, ChevronRight, ShieldCheck, Zap } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -236,6 +237,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const [placing, setPlacing] = useState(false)
   const [step, setStep] = useState<'cart' | 'address'>('cart')
   const [addressData, setAddressData] = useState<AddressForm | null>(null)
+  const idempotencyKeyRef = useRef<string | null>(null)
 
   const { register, handleSubmit, formState: { errors }, setValue, getValues } = useForm<AddressForm>()
 
@@ -271,8 +273,12 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
   }
 
   const placeOrder = async (address: AddressForm) => {
+    if (placing) return
     setPlacing(true)
     try {
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`
+      }
       const amountPaise = Math.round(total * 100)
       const createRes = await apiClient.post<{
         success: true; data: { orderId: string; amount: number; currency: string }
@@ -288,9 +294,10 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
         const orderRes = await ordersApi.place({
           items: cart.map((i) => ({ productId: i.product._id, quantity: i.quantity })),
           deliveryAddress: address,
-        })
+        }, idempotencyKeyRef.current!)
         prependOrder(orderRes.data.data)
         clearCart(); onClose(); setStep('cart')
+        idempotencyKeyRef.current = null
         toast.success('Order placed successfully')
         return
       }
@@ -311,9 +318,10 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
               const orderRes = await ordersApi.place({
                 items: cart.map((i) => ({ productId: i.product._id, quantity: i.quantity })),
                 deliveryAddress: address,
-              })
+              }, idempotencyKeyRef.current!)
               prependOrder(orderRes.data.data)
               clearCart(); onClose(); setStep('cart')
+              idempotencyKeyRef.current = null
               toast.success('Order placed successfully')
               resolve()
             } catch (err: any) {

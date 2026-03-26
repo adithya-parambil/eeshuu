@@ -10,6 +10,7 @@ import { ordersApi } from '@/lib/api/orders'
 import { cn } from '@/lib/utils'
 import { AddressPickerMap } from './address-picker-map'
 import { useCartSync } from '@/hooks/use-cart-sync'
+import { useAuthStore } from '@/store/auth.store'
 import type { DeliveryAddressWithCoords } from '@/types'
 
 interface CartDrawerProps { open: boolean; onClose: () => void }
@@ -218,6 +219,7 @@ function AddressInput({ label, error, ...props }: any) {
 export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const { cart, updateCartQty, clearCart, prependOrder } = useCustomerStore()
   const { broadcastCartAction } = useCartSync()
+  const user = useAuthStore((s) => s.user)
   const [placing, setPlacing] = useState(false)
   const [step, setStep] = useState<'cart' | 'address'>('cart')
   const [addressData, setAddressData] = useState<AddressForm | null>(null)
@@ -258,6 +260,10 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 
   const placeOrder = async (address: AddressForm) => {
     if (placing) return
+    if (!user || user.role !== 'customer') {
+      toast.error('Only customers can place orders')
+      return
+    }
     setPlacing(true)
     try {
       if (!idempotencyKeyRef.current) {
@@ -274,7 +280,15 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
       idempotencyKeyRef.current = null
       toast.success('Order placed successfully')
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Order placement failed')
+      const msg = err?.response?.data?.message
+      const code = err?.response?.data?.code
+      if (code === 'FORBIDDEN' && typeof msg === 'string' && msg.includes("Role 'delivery'")) {
+        toast.error('You are logged in as a delivery partner', {
+          description: 'Log out and sign in as a customer to place orders',
+        })
+      } else {
+        toast.error(msg ?? 'Order placement failed')
+      }
     }
     finally { setPlacing(false) }
   }

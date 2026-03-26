@@ -75,9 +75,14 @@ export function setupOrderNamespace(io: SocketIOServer): void {
         address: payload.address,
       })
       // Notify delivery pool of new available order
-      broadcastToRoom(nsp, RoomPatterns.DELIVERY(), EVENTS.ORDER_NEW, event)
+      const deliveryRoom = RoomPatterns.DELIVERY()
+      console.log('[ORDER.PLACED] Broadcasting ORDER_NEW to room:', deliveryRoom)
+      console.log('[ORDER.PLACED] Event payload:', event)
+      broadcastToRoom(nsp, deliveryRoom, EVENTS.ORDER_NEW, event)
       // Mirror to admin dashboard
       broadcastToRoom(adminNsp, RoomPatterns.ADMIN(), EVENTS.ORDER_NEW, event)
+      
+      console.log('[ORDER.PLACED] Broadcast complete')
       
       // Send push notifications to all delivery partners (non-blocking)
       setImmediate(async () => {

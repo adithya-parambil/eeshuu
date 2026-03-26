@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingCart, Check, Package, Plus, Minus, Trash2 } from 'lucide-react'
 import { useCustomerStore } from '@/store/customer.store'
+import { useCartSync } from '@/hooks/use-cart-sync'
 import { cn } from '@/lib/utils'
 import type { Product } from '@/types'
 
@@ -19,6 +20,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const removeFromCart = useCustomerStore((s) => s.removeFromCart)
   const updateQuantity = useCustomerStore((s) => s.updateCartQty)
   const cart           = useCustomerStore((s) => s.cart)
+  const { broadcastCartAction } = useCartSync()
 
   const inCart     = cart.find((i) => i.product._id === product._id)
   const qty        = inCart?.quantity ?? 0
@@ -31,16 +33,25 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     if (outOfStock || adding) return
     setAdding(true)
     addToCart(product)
+    broadcastCartAction('ADD', product._id, 1)
     setTimeout(() => setAdding(false), 650)
   }
 
   const handleInc = () => {
-    if (!atMax) updateQuantity(product._id, qty + 1)
+    if (!atMax) {
+      updateQuantity(product._id, qty + 1)
+      broadcastCartAction('UPDATE', product._id, qty + 1)
+    }
   }
 
   const handleDec = () => {
-    if (qty > 1) updateQuantity(product._id, qty - 1)
-    else removeFromCart(product._id)
+    if (qty > 1) {
+      updateQuantity(product._id, qty - 1)
+      broadcastCartAction('UPDATE', product._id, qty - 1)
+    } else {
+      removeFromCart(product._id)
+      broadcastCartAction('REMOVE', product._id, 0)
+    }
   }
 
   return (

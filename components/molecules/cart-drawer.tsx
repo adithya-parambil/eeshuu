@@ -9,6 +9,7 @@ import { ordersApi } from '@/lib/api/orders'
 import { apiClient } from '@/lib/api/client'
 import { cn } from '@/lib/utils'
 import { AddressPickerMap } from './address-picker-map'
+import { useCartSync } from '@/hooks/use-cart-sync'
 import type { DeliveryAddressWithCoords } from '@/types'
 
 interface CartDrawerProps { open: boolean; onClose: () => void }
@@ -231,6 +232,7 @@ function AddressInput({ label, error, ...props }: any) {
    ═══════════════════════════════════════════════════════════════════════════ */
 export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const { cart, updateCartQty, clearCart, prependOrder } = useCustomerStore()
+  const { broadcastCartAction } = useCartSync()
   const [placing, setPlacing] = useState(false)
   const [step, setStep] = useState<'cart' | 'address'>('cart')
   const [addressData, setAddressData] = useState<AddressForm | null>(null)
@@ -476,9 +478,18 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                           <CartItem
                             key={item.product._id}
                             item={item}
-                            onInc={() => updateCartQty(item.product._id, item.quantity + 1)}
-                            onDec={() => updateCartQty(item.product._id, item.quantity - 1)}
-                            onRemove={() => updateCartQty(item.product._id, 0)}
+                            onInc={() => {
+                              updateCartQty(item.product._id, item.quantity + 1)
+                              broadcastCartAction('UPDATE', item.product._id, item.quantity + 1)
+                            }}
+                            onDec={() => {
+                              updateCartQty(item.product._id, item.quantity - 1)
+                              broadcastCartAction('UPDATE', item.product._id, item.quantity - 1)
+                            }}
+                            onRemove={() => {
+                              updateCartQty(item.product._id, 0)
+                              broadcastCartAction('REMOVE', item.product._id, 0)
+                            }}
                           />
                         ))}
                       </AnimatePresence>

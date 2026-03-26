@@ -3,6 +3,7 @@ import { log } from '../../utils/logger'
 import { EVENTS, RoomPatterns, buildEvent } from '../events/event-catalog'
 import { broadcastToRoom } from '../rooms/room-manager'
 import { productEventEmitter } from '../../utils/event-emitters'
+import { getIO } from '../../server'
 
 /**
  * setupAdminNamespace — wires the /admin Socket.io namespace.
@@ -13,7 +14,21 @@ import { productEventEmitter } from '../../utils/event-emitters'
 export function setupAdminNamespace(io: SocketIOServer): void {
   const nsp = io.of('/admin')
 
-  // ── Listen for product events and broadcast to admin dashboard ─────────────────
+  // ── Listen for product events and broadcast to admin dashboard AND customers ─────────────────
+
+  // Helper to broadcast to both admin and order namespaces
+  const broadcastProductEvent = (eventName: string, payload: any) => {
+    const io = getIO()
+    const orderNsp = io.of('/order')
+    
+    // Broadcast to admin room
+    broadcastToRoom(nsp, RoomPatterns.ADMIN(), eventName, buildEvent(payload))
+    
+    // Broadcast to all customers in order namespace
+    broadcastToRoom(orderNsp, 'customers', eventName, buildEvent(payload))
+    
+    log.info({ productId: payload.productId, eventName }, 'Product event broadcast to admin and customers')
+  }
 
   // Product created
   productEventEmitter.on('product.created', (payload: {
@@ -24,16 +39,7 @@ export function setupAdminNamespace(io: SocketIOServer): void {
     stock: number
     isActive: boolean
   }) => {
-    const event = buildEvent({
-      productId: payload.productId,
-      name: payload.name,
-      category: payload.category,
-      price: payload.price,
-      stock: payload.stock,
-      isActive: payload.isActive,
-    })
-    broadcastToRoom(nsp, RoomPatterns.ADMIN(), EVENTS.PRODUCT_CREATED, event)
-    log.info({ productId: payload.productId }, 'v1:PRODUCT:CREATED emitted to admin:dashboard')
+    broadcastProductEvent(EVENTS.PRODUCT_CREATED, payload)
   })
 
   // Product updated
@@ -45,27 +51,14 @@ export function setupAdminNamespace(io: SocketIOServer): void {
     stock: number
     isActive: boolean
   }) => {
-    const event = buildEvent({
-      productId: payload.productId,
-      name: payload.name,
-      category: payload.category,
-      price: payload.price,
-      stock: payload.stock,
-      isActive: payload.isActive,
-    })
-    broadcastToRoom(nsp, RoomPatterns.ADMIN(), EVENTS.PRODUCT_UPDATED, event)
-    log.info({ productId: payload.productId }, 'v1:PRODUCT:UPDATED emitted to admin:dashboard')
+    broadcastProductEvent(EVENTS.PRODUCT_UPDATED, payload)
   })
 
   // Product deleted
   productEventEmitter.on('product.deleted', (payload: {
     productId: string
   }) => {
-    const event = buildEvent({
-      productId: payload.productId,
-    })
-    broadcastToRoom(nsp, RoomPatterns.ADMIN(), EVENTS.PRODUCT_DELETED, event)
-    log.info({ productId: payload.productId }, 'v1:PRODUCT:DELETED emitted to admin:dashboard')
+    broadcastProductEvent(EVENTS.PRODUCT_DELETED, payload)
   })
 
   // Namespace-level role guard — reject non-admins before connection

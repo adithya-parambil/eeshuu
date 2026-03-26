@@ -18,6 +18,8 @@ import {
 import { joinRoom, leaveRoom, broadcastToRoom } from '../rooms/room-manager'
 import { setOrderLocation, deleteOrderLocation } from '../../utils/location-cache'
 import type { OrderItem, DeliveryAddress } from '../../types/global.types'
+import { sendNewOrderAlertToPartners } from '../../services/push-notification.service'
+import { getAllDeliveryPartnerTokens } from '../../repositories/device-token.repository'
 
 type AckFn = (res: { ok: boolean; error?: string }) => void
 
@@ -75,6 +77,18 @@ export function setupOrderNamespace(io: SocketIOServer): void {
     broadcastToRoom(nsp, RoomPatterns.DELIVERY(), EVENTS.ORDER_NEW, event)
     // Mirror to admin dashboard
     broadcastToRoom(adminNsp, RoomPatterns.ADMIN(), EVENTS.ORDER_NEW, event)
+    
+    // Send push notifications to all delivery partners
+    getAllDeliveryPartnerTokens().then(partnerTokens => {
+      if (partnerTokens.length > 0) {
+        sendNewOrderAlertToPartners(
+          partnerTokens,
+          payload.orderId,
+          payload.totalAmount,
+        ).catch(err => log.error({ err }, 'Failed to send push notifications'))
+      }
+    }).catch(err => log.error({ err }, 'Failed to get partner tokens'))
+    
     metrics.increment('socket_events_total', { event: 'ORDER_NEW', result: 'success' })
     log.info({ orderId: payload.orderId }, 'v1:ORDER:NEW emitted to delivery:pool and admin:dashboard')
   })
@@ -179,6 +193,8 @@ export function setupOrderNamespace(io: SocketIOServer): void {
       )
     } else if (role === 'customer') {
       joinRoom(socket, RoomPatterns.USER(userId))
+      // Join customers room to receive product updates
+      joinRoom(socket, 'customers')
     }
 
     // ── join:order / leave:order — customers join to receive location updates ──
@@ -378,6 +394,43 @@ export function setupOrderNamespace(io: SocketIOServer): void {
         ack({ ok: true })
       } catch (err) {
         log.error({ err, orderId: data.orderId, userId }, 'PARTNER_LOCATION handler error')
+        ack({ ok: false, error: 'INTERNAL_ERROR' })
+      }
+    })
+
+    // ── v1:CART:UPDATED — customer cart sync across devices ──────────────
+    socket.on(EVENTS.CART_UPDATED, async (
+      data: { 
+        userId: string
+        action: 'ADD' | 'REMOVE' | 'UPDATE' | 'CLEAR'
+        productId?: string
+        quantity?: number
+        eventId?: string 
+      },
+      ack: AckFn,
+    ) => {
+      if (role !== 'customer') {
+        ack({ ok: false, error: 'FORBIDDEN' })
+        return
+      }
+
+      // Don't dedup - we want to broadcast all cart changes
+      try {
+        // Broadcast to all other customer sockets for this user
+        const userRoom = RoomPatterns.USER(userId)
+        const event = buildEvent({
+          userId,
+          action: data.action,
+          productId: data.productId,
+          quantity: data.quantity,
+        })
+        
+        // Send to user's personal room (all their devices)
+        broadcastToRoom(nsp, userRoom, EVENTS.CART_UPDATED, event)
+        
+        ack({ ok: true })
+      } catch (err) {
+        log.error({ err, userId }, 'CART_UPDATED handler error')
         ack({ ok: false, error: 'INTERNAL_ERROR' })
       }
     })

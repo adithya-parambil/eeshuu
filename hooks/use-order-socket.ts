@@ -85,6 +85,7 @@ export function useOrderSocket() {
     // ── ORDER_NEW (delivery) ──────────────────────────────────────────────
     socket.on(EVENTS.ORDER_NEW, (payload: OrderNewPayload) => {
       if (isDuplicate(payload.eventId)) return
+      console.log('[SOCKET] Received ORDER_NEW event:', payload)
       if (user.role === 'delivery') {
         addAvailableOrder({
           _id: payload.orderId,
@@ -97,6 +98,7 @@ export function useOrderSocket() {
           createdAt: payload.timestamp,
           updatedAt: payload.timestamp,
         })
+        console.log('[SOCKET] Added order to available orders:', payload.orderId)
         toast('New order available', { description: `₹${payload.totalAmount}` })
       }
     })

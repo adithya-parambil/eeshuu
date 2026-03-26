@@ -62,10 +62,13 @@ export const useCustomerStore = create<CustomerState>()(
         } else {
           set({ cart: [...cart, { product, quantity }] })
         }
+        // Broadcast to other devices (will be called in component)
       },
 
-      removeFromCart: (productId) =>
-        set({ cart: get().cart.filter((i) => i.product._id !== productId) }),
+      removeFromCart: (productId) => {
+        set({ cart: get().cart.filter((i) => i.product._id !== productId) })
+        // Broadcast to other devices (will be called in component)
+      },
 
       updateCartQty: (productId, quantity) => {
         if (quantity <= 0) {
@@ -73,9 +76,13 @@ export const useCustomerStore = create<CustomerState>()(
           return
         }
         set({ cart: get().cart.map((i) => i.product._id === productId ? { ...i, quantity } : i) })
+        // Broadcast to other devices (will be called in component)
       },
 
-      clearCart: () => set({ cart: [] }),
+      clearCart: () => {
+        set({ cart: [] })
+        // Broadcast to other devices (will be called in component)
+      },
 
       setOrders: (orders, meta) => set({ orders, ordersMeta: meta }),
       setOrdersLoading: (v) => set({ ordersLoading: v }),

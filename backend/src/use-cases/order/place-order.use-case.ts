@@ -79,6 +79,8 @@ export class PlaceOrderUseCase {
       address: dto.deliveryAddress,
     })
 
+    log.info({ orderId: String(order._id) }, 'order.placed event emitted')
+
     metrics.increment('order_placed_total', { role: 'customer' })
     log.info(
       { orderId: String(order._id), customerId: ctx.customerId, requestId: ctx.requestId },

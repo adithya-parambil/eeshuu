@@ -12,6 +12,8 @@ import { useCustomerStore } from '@/store/customer.store'
 import { useOrderSocket } from '@/hooks/use-order-socket'
 import { productsApi } from '@/lib/api/products'
 import { cn } from '@/lib/utils'
+import { connectSocket, isDuplicate } from '@/lib/socket/socket-client'
+import { toast } from 'sonner'
 
 const CATEGORIES = ['All', 'Dairy', 'Bakery', 'Fruits', 'Vegetables', 'Meat', 'Seafood', 'Beverages', 'Snacks', 'Pantry', 'Frozen']
 
@@ -270,6 +272,41 @@ export default function DashboardPage() {
   const reqRef = useRef(0)
 
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
+
+  // Real-time product updates listener
+  useEffect(() => {
+    const socket = connectSocket('/order')
+    
+    socket.off('v1:PRODUCT:CREATED')
+    socket.off('v1:PRODUCT:UPDATED')
+    socket.off('v1:PRODUCT:DELETED')
+
+    socket.on('v1:PRODUCT:CREATED', (payload: { productId: string; eventId: string }) => {
+      if (isDuplicate(payload.eventId)) return
+      // Refetch to get the new product
+      fetchProducts()
+      toast.success('New product added')
+    })
+
+    socket.on('v1:PRODUCT:UPDATED', (payload: { productId: string; eventId: string }) => {
+      if (isDuplicate(payload.eventId)) return
+      // Refetch to get the updated product
+      fetchProducts()
+    })
+
+    socket.on('v1:PRODUCT:DELETED', (payload: { productId: string; eventId: string }) => {
+      if (isDuplicate(payload.eventId)) return
+      // Remove from list if exists
+      setProducts(prev => prev.filter(p => p._id !== payload.productId), productsMeta!)
+      toast.error('A product was removed')
+    })
+
+    return () => {
+      socket.off('v1:PRODUCT:CREATED')
+      socket.off('v1:PRODUCT:UPDATED')
+      socket.off('v1:PRODUCT:DELETED')
+    }
+  }, [fetchProducts])
 
   const fetchProducts = useCallback(async () => {
     setProductsLoading(true)

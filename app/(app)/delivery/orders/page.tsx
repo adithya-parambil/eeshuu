@@ -19,6 +19,7 @@ export default function DeliveryOrdersPage() {
   useOrderSocket()
   const { availableOrders, setAvailableOrders, removeAvailableOrder, setActiveOrder, isLoading, setLoading, isOnline, setOnline } = useDeliveryStore()
   const [accepting, setAccepting] = useState<string | null>(null)
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date())
 
   // ── Request location permission on mount for delivery partners ──────────────
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function DeliveryOrdersPage() {
       try {
         const res = await ordersApi.listAvailable()
         setAvailableOrders(res.data.data)
+        setLastUpdateTime(new Date())
       } catch { /* ignore */ }
       finally { setLoading(false) }
     }
@@ -72,6 +74,12 @@ export default function DeliveryOrdersPage() {
       }
     } catch { /* ignore */ }
   }, [])
+
+  // Log when available orders change
+  useEffect(() => {
+    console.log('[DELIVERY ORDERS] Available orders updated:', availableOrders.length, 'orders')
+    setLastUpdateTime(new Date())
+  }, [availableOrders])
 
   const handleAccept = async (order: Order) => {
     setAccepting(order._id)
@@ -117,6 +125,11 @@ export default function DeliveryOrdersPage() {
             <h1 className="text-2xl font-bold text-white">Available Orders</h1>
             <p className="text-white/30 text-sm mt-0.5">
               {availableOrders.length} order{availableOrders.length !== 1 ? 's' : ''} waiting
+              {lastUpdateTime && (
+                <span className="ml-2 text-[10px] opacity-50">
+                  (Updated: {lastUpdateTime.toLocaleTimeString()})
+                </span>
+              )}
             </p>
           </motion.div>
 

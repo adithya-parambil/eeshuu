@@ -7,17 +7,30 @@ import { dbConfig } from './config/modules/db.config'
 import { initializeSocketEngine } from './socket/socket.engine'
 
 // Handle unhandled promise rejections - DON'T exit
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason: any, promise) => {
   console.error('[UNHANDLED REJECTION] reason:', reason)
-  log.error({ reason, promise }, 'Unhandled Rejection')
+  console.error('[UNHANDLED REJECTION] stack:', reason?.stack || 'No stack trace')
+  log.error({ 
+    reason: reason instanceof Error ? { message: reason.message, stack: reason.stack } : reason,
+    promise 
+  }, 'Unhandled Rejection - SERVER WILL NOT CRASH')
   // IMPORTANT: Don't call process.exit() - just log it
 })
 
-// Handle uncaught exceptions - DON'T exit
-process.on('uncaughtException', (error) => {
+// Handle uncaught exceptions - DON'T exit  
+process.on('uncaughtException', (error: any) => {
   console.error('[UNCAUGHT EXCEPTION] error:', error)
-  log.error({ error }, 'Uncaught Exception')
+  console.error('[UNCAUGHT EXCEPTION] stack:', error?.stack || 'No stack trace')
+  log.error({ 
+    error: error instanceof Error ? { message: error.message, stack: error.stack } : error 
+  }, 'Uncaught Exception - SERVER WILL NOT CRASH')
   // IMPORTANT: Don't call process.exit() - just log it
+})
+
+// Prevent Node.js from crashing on async errors
+process.on('warning', (warning) => {
+  console.warn('[PROCESS WARNING]', warning)
+  log.warn({ warning }, 'Process warning')
 })
 
 async function connectWithRetry(

@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingCart, Search, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
@@ -266,11 +267,13 @@ export default function DashboardPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
   const [page, setPage] = useState(1)
+  const reqRef = useRef(0)
 
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
 
   const fetchProducts = useCallback(async () => {
     setProductsLoading(true)
+    const id = ++reqRef.current
     try {
       const res = await productsApi.list({
         page,
@@ -278,11 +281,15 @@ export default function DashboardPage() {
         category: category !== 'All' ? category : undefined,
         search: search || undefined,
       })
-      setProducts(res.data.data, res.data.meta)
+      if (id === reqRef.current) {
+        setProducts(res.data.data, res.data.meta)
+      }
     } catch {
       /* ignore */
     } finally {
-      setProductsLoading(false)
+      if (id === reqRef.current) {
+        setProductsLoading(false)
+      }
     }
   }, [page, category, search])
 

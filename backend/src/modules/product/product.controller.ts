@@ -35,6 +35,7 @@ export const productController = {
 
   createProduct: asyncHandler(async (req: Request, res: Response) => {
     const product = await createProductUseCase.execute(req.body, { requestId: req.id })
+    await cacheService.invalidatePattern('products:list:')
     // Emit product.created event for real-time updates
     productEventEmitter.emit('product.created', {
       productId: product._id?.toString(),

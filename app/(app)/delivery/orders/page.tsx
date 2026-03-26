@@ -64,6 +64,13 @@ export default function DeliveryOrdersPage() {
       finally { setLoading(false) }
     }
     fetch()
+    // Ensure we are in the delivery pool for ORDER_NEW broadcasts when page loads
+    try {
+      if (isOnline) {
+        const socket = connectSocket('/order')
+        socket.emit('v1:PARTNER:STATUS', { status: 'online', eventId: uuidv4() }, () => {})
+      }
+    } catch { /* ignore */ }
   }, [])
 
   const handleAccept = async (order: Order) => {

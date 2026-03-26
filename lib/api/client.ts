@@ -2,7 +2,10 @@ import axios, { type AxiosInstance, type AxiosRequestConfig, type InternalAxiosR
 import { tokenStore } from '@/lib/token-store'
 import { emitTokenRefreshed } from '@/lib/events/token-events'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost/api'
+const RAW_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost/api'
+const STRIPPED = RAW_BASE.replace(/\/+$/, '')
+const BASE_PREFIXED = STRIPPED.endsWith('/api') ? STRIPPED : `${STRIPPED}/api`
+const BASE_URL = BASE_PREFIXED
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
 export const apiClient: AxiosInstance = axios.create({

@@ -66,37 +66,45 @@ export function setupOrderNamespace(io: SocketIOServer): void {
     totalAmount: number
     address: DeliveryAddress
   }) => {
-    const event = buildEvent<Omit<OrderNewPayload, keyof BaseEventPayload>>({
-      orderId: payload.orderId,
-      customerId: payload.customerId,
-      items: payload.items,
-      totalAmount: payload.totalAmount,
-      address: payload.address,
-    })
-    // Notify delivery pool of new available order
-    broadcastToRoom(nsp, RoomPatterns.DELIVERY(), EVENTS.ORDER_NEW, event)
-    // Mirror to admin dashboard
-    broadcastToRoom(adminNsp, RoomPatterns.ADMIN(), EVENTS.ORDER_NEW, event)
-    
-    // Send push notifications to all delivery partners (non-blocking)
-    setImmediate(async () => {
-      try {
-        const partnerTokens = await getAllDeliveryPartnerTokens()
-        if (partnerTokens.length > 0) {
-          await sendNewOrderAlertToPartners(
-            partnerTokens,
-            payload.orderId,
-            payload.totalAmount,
-          )
-          log.info({ orderId: payload.orderId, count: partnerTokens.length }, 'Push notifications sent to delivery partners')
+    try {
+      const event = buildEvent<Omit<OrderNewPayload, keyof BaseEventPayload>>({
+        orderId: payload.orderId,
+        customerId: payload.customerId,
+        items: payload.items,
+        totalAmount: payload.totalAmount,
+        address: payload.address,
+      })
+      // Notify delivery pool of new available order
+      broadcastToRoom(nsp, RoomPatterns.DELIVERY(), EVENTS.ORDER_NEW, event)
+      // Mirror to admin dashboard
+      broadcastToRoom(adminNsp, RoomPatterns.ADMIN(), EVENTS.ORDER_NEW, event)
+      
+      // Send push notifications to all delivery partners (non-blocking)
+      setImmediate(async () => {
+        try {
+          const partnerTokens = await getAllDeliveryPartnerTokens()
+          if (partnerTokens.length > 0) {
+            await sendNewOrderAlertToPartners(
+              partnerTokens,
+              payload.orderId,
+              payload.totalAmount,
+            )
+            log.info({ orderId: payload.orderId, count: partnerTokens.length }, 'Push notifications sent to delivery partners')
+          }
+        } catch (err: any) {
+          console.error('[PUSH NOTIFICATION ERROR]', err?.message || err)
+          log.error({ err, orderId: payload.orderId }, 'Failed to send push notifications')
         }
-      } catch (err) {
-        log.error({ err, orderId: payload.orderId }, 'Failed to send push notifications')
-      }
-    })
-    
-    metrics.increment('socket_events_total', { event: 'ORDER_NEW', result: 'success' })
-    log.info({ orderId: payload.orderId }, 'v1:ORDER:NEW emitted to delivery:pool and admin:dashboard')
+      })
+      
+      metrics.increment('socket_events_total', { event: 'ORDER_NEW', result: 'success' })
+      log.info({ orderId: payload.orderId }, 'v1:ORDER:NEW emitted to delivery:pool and admin:dashboard')
+    } catch (err: any) {
+      console.error('[ORDER.PLACED HANDLER ERROR]', err?.message || err)
+      console.error('[ORDER.PLACED HANDLER STACK]', err?.stack)
+      log.error({ err, payload }, 'Error in order.placed event handler')
+      metrics.increment('socket_events_total', { event: 'ORDER_NEW', result: 'error' })
+    }
   })
 
   // ── Fix 3a: Listen for order.cancelled → emit v1:ORDER:CANCELLED ─────────

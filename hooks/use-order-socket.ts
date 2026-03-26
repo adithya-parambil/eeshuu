@@ -31,7 +31,14 @@ export function useOrderSocket() {
   useEffect(() => {
     if (!user) return
 
+    console.log('[SOCKET HOOK] Starting for user:', { userId: user._id, role: user.role })
     const socket = connectSocket('/order')
+    
+    console.log('[SOCKET HOOK] Socket instance created:', {
+      connected: socket.connected,
+      id: socket.id,
+      namespace: socket.namespace.uri
+    })
 
     // Remove any stale listeners from a previous mount before re-registering
     socket.off(EVENTS.ORDER_NEW)

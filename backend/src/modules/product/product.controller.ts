@@ -3,7 +3,7 @@ import { asyncHandler } from '../../utils/async-handler'
 import { ApiResponse } from '../../utils/response-builder'
 import { createProductUseCase } from '../../use-cases/product/create-product.use-case'
 import { getProductUseCase } from '../../use-cases/product/get-product.use-case'
-import { listProductsUseCase } from '../../use-cases/product/list-products.use-case'
+import { listProductsUseCase, ProductFiltersDto } from '../../use-cases/product/list-products.use-case'
 import { productWriteRepo } from '../../repositories/write/product.write-repo'
 import { cacheService } from '../../utils/cache-service'
 import { NotFoundError } from '../../utils/app-error'
@@ -11,9 +11,10 @@ import { productEventEmitter } from '../../utils/event-emitters'
 
 export const productController = {
   listProducts: asyncHandler(async (req: Request, res: Response) => {
+    const filters = ProductFiltersDto.parse(req.query)
     const result = await listProductsUseCase.execute(
-      req.query as Record<string, string>,
-      { requestId: req.id },
+      filters,
+      { requestId: String(req.id) },
     )
     res.status(200).json(
       ApiResponse.success(result.items, {
@@ -28,13 +29,13 @@ export const productController = {
   getProduct: asyncHandler(async (req: Request, res: Response) => {
     const product = await getProductUseCase.execute(
       req.params.productId,
-      { requestId: req.id },
+      { requestId: String(req.id) },
     )
     res.status(200).json(ApiResponse.success(product))
   }),
 
   createProduct: asyncHandler(async (req: Request, res: Response) => {
-    const product = await createProductUseCase.execute(req.body, { requestId: req.id })
+    const product = await createProductUseCase.execute(req.body, { requestId: String(req.id) })
     await cacheService.invalidatePattern('products:list:')
     // Emit product.created event for real-time updates
     productEventEmitter.emit('product.created', {

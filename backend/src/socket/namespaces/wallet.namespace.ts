@@ -1,7 +1,7 @@
 import { Server as SocketIOServer } from 'socket.io'
 import { log } from '../../utils/logger'
 import { walletEventEmitter } from '../../utils/event-emitters'
-import { RoomPatterns } from '../events/event-catalog'
+import { RoomPatterns, buildEvent } from '../events/event-catalog'
 import { broadcastToRoom } from '../rooms/room-manager'
 
 /**
@@ -20,15 +20,12 @@ export function setupWalletNamespace(io: SocketIOServer): void {
         delta: number
         type: string
     }) => {
-        const event = {
-            version: 'v1' as const,
-            eventId: crypto.randomUUID(),
-            timestamp: new Date().toISOString(),
+        const event = buildEvent({
             userId: payload.userId,
             balance: payload.balance,
             delta: payload.delta,
             type: payload.type,
-        }
+        })
 
         // Broadcast to the specific user's room
         broadcastToRoom(

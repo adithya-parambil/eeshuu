@@ -264,7 +264,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
         idempotencyKeyRef.current = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`
       }
 
-      const orderRes = await ordersApi.place({
+      const orderRes = await ordersApi.placeWithRetry({
         items: cart.map((i) => ({ productId: i.product._id, quantity: i.quantity })),
         deliveryAddress: address,
       }, idempotencyKeyRef.current!)

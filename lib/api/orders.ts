@@ -13,6 +13,30 @@ export const ordersApi = {
       body,
       { headers: { 'Idempotency-Key': idempotencyKey ?? uuidv4() } },
     ),
+  
+  placeWithRetry: async (
+    body: { items: { productId: string; quantity: number }[]; deliveryAddress: DeliveryAddress },
+    idempotencyKey: string,
+    maxAttempts = 3,
+  ) => {
+    let lastErr: any = null
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await ordersApi.place(body, idempotencyKey)
+      } catch (err: any) {
+        lastErr = err
+        const status = err?.response?.status
+        const retriable = !status || status === 502 || status === 503 || status === 504
+        if (!retriable || attempt === maxAttempts) {
+          throw err
+        }
+        const base = 500
+        const delay = base * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 150)
+        await new Promise((r) => setTimeout(r, delay))
+      }
+    }
+    throw lastErr
+  },
 
   list: (params?: { page?: number; limit?: number; status?: string }) =>
     apiClient.get<{ success: true; data: Order[]; meta: ApiMeta }>('/orders', { params }),

@@ -19,7 +19,7 @@ export function getSocket(namespace: '/order' | '/admin' | '/notifications' | '/
     transports: ['websocket', 'polling'],
     auth: { token: tokenStore.getAccess() ?? '', versions: ['v1'] },
     reconnection: true,
-    reconnectionAttempts: 10,
+    reconnectionAttempts: 100,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
   })

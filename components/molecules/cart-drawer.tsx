@@ -7,7 +7,6 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { useCustomerStore } from '@/store/customer.store'
 import { ordersApi } from '@/lib/api/orders'
-import { apiClient } from '@/lib/api/client'
 import { cn } from '@/lib/utils'
 import { AddressPickerMap } from './address-picker-map'
 import { useCartSync } from '@/hooks/use-cart-sync'
@@ -28,22 +27,7 @@ const DELIVERY_FEE = 25
 const PLATFORM_FEE = 5
 const TAX_RATE     = 0.05
 
-const IS_MOCK_PAYMENT =
-  !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-  process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID === 'rzp_test_placeholder' ||
-  process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID === 'rzp_test_xxxxxxxxxxxx'
 
-function loadRazorpay(): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (typeof window === 'undefined') return resolve(false)
-    if ((window as any).Razorpay) return resolve(true)
-    const s = document.createElement('script')
-    s.src = 'https://checkout.razorpay.com/v1/checkout.js'
-    s.onload  = () => resolve(true)
-    s.onerror = () => resolve(false)
-    document.body.appendChild(s)
-  })
-}
 
 /* ── Tiny reusable qty button ─────────────────────────────────────────────── */
 function QtyBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
@@ -279,62 +263,19 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
       if (!idempotencyKeyRef.current) {
         idempotencyKeyRef.current = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`
       }
-      const amountPaise = Math.round(total * 100)
-      const createRes = await apiClient.post<{
-        success: true; data: { orderId: string; amount: number; currency: string }
-      }>('/payment/create-order', { amount: amountPaise, currency: 'INR' })
-      const { orderId: razorpayOrderId, amount, currency } = createRes.data.data
 
-      if (IS_MOCK_PAYMENT) {
-        await apiClient.post('/payment/verify', {
-          razorpay_payment_id: `pay_mock_${Date.now()}`,
-          razorpay_order_id: razorpayOrderId,
-          razorpay_signature: 'mock_signature',
-        })
-        const orderRes = await ordersApi.place({
-          items: cart.map((i) => ({ productId: i.product._id, quantity: i.quantity })),
-          deliveryAddress: address,
-        }, idempotencyKeyRef.current!)
-        prependOrder(orderRes.data.data)
-        clearCart(); onClose(); setStep('cart')
-        idempotencyKeyRef.current = null
-        toast.success('Order placed successfully')
-        return
-      }
+      const orderRes = await ordersApi.place({
+        items: cart.map((i) => ({ productId: i.product._id, quantity: i.quantity })),
+        deliveryAddress: address,
+      }, idempotencyKeyRef.current!)
 
-      const loaded = await loadRazorpay()
-      if (!loaded) { toast.error('Failed to load payment gateway.'); return }
-
-      await new Promise<void>((resolve, reject) => {
-        const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-          amount, currency,
-          name: 'Eeshuu',
-          description: `Order of ${cart.length} item(s)`,
-          order_id: razorpayOrderId,
-          handler: async (response: any) => {
-            try {
-              await apiClient.post('/payment/verify', response)
-              const orderRes = await ordersApi.place({
-                items: cart.map((i) => ({ productId: i.product._id, quantity: i.quantity })),
-                deliveryAddress: address,
-              }, idempotencyKeyRef.current!)
-              prependOrder(orderRes.data.data)
-              clearCart(); onClose(); setStep('cart')
-              idempotencyKeyRef.current = null
-              toast.success('Order placed successfully')
-              resolve()
-            } catch (err: any) {
-              toast.error(err?.response?.data?.message ?? 'Order placement failed')
-              reject(err)
-            }
-          },
-          modal: { ondismiss: () => { toast.error('Payment cancelled'); reject(new Error('dismissed')) } },
-          theme: { color: '#4f8ef7' },
-        }
-        new (window as any).Razorpay(options).open()
-      })
-    } catch { /* errors toasted */ }
+      prependOrder(orderRes.data.data)
+      clearCart(); onClose(); setStep('cart')
+      idempotencyKeyRef.current = null
+      toast.success('Order placed successfully')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Order placement failed')
+    }
     finally { setPlacing(false) }
   }
 

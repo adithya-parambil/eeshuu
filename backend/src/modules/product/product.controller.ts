@@ -3,7 +3,7 @@ import { asyncHandler } from '../../utils/async-handler'
 import { ApiResponse } from '../../utils/response-builder'
 import { createProductUseCase } from '../../use-cases/product/create-product.use-case'
 import { getProductUseCase } from '../../use-cases/product/get-product.use-case'
-import { listProductsUseCase, ProductFiltersDto } from '../../use-cases/product/list-products.use-case'
+import { listProductsUseCase, ProductFiltersDto, ProductFiltersDtoType } from '../../use-cases/product/list-products.use-case'
 import { productWriteRepo } from '../../repositories/write/product.write-repo'
 import { cacheService } from '../../utils/cache-service'
 import { NotFoundError } from '../../utils/app-error'
@@ -11,7 +11,8 @@ import { productEventEmitter } from '../../utils/event-emitters'
 
 export const productController = {
   listProducts: asyncHandler(async (req: Request, res: Response) => {
-    const filters = ProductFiltersDto.parse(req.query)
+    // Already validated by validateQuery(ProductFiltersDto) in routes
+    const filters = req.query as unknown as ProductFiltersDtoType
     const result = await listProductsUseCase.execute(
       filters,
       { requestId: String(req.id) },
@@ -28,7 +29,7 @@ export const productController = {
 
   getProduct: asyncHandler(async (req: Request, res: Response) => {
     const product = await getProductUseCase.execute(
-      req.params.productId,
+      String(req.params.productId),
       { requestId: String(req.id) },
     )
     res.status(200).json(ApiResponse.success(product))
@@ -50,7 +51,7 @@ export const productController = {
   }),
 
   updateProduct: asyncHandler(async (req: Request, res: Response) => {
-    const updated = await productWriteRepo.update(req.params.productId, req.body)
+    const updated = await productWriteRepo.update(String(req.params.productId), req.body)
     if (!updated) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND')
     await cacheService.invalidatePattern('products:list:')
     // Emit product.updated event for real-time updates
@@ -66,12 +67,12 @@ export const productController = {
   }),
 
   deleteProduct: asyncHandler(async (req: Request, res: Response) => {
-    const deleted = await productWriteRepo.delete(req.params.productId)
+    const deleted = await productWriteRepo.delete(String(req.params.productId))
     if (!deleted) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND')
     await cacheService.invalidatePattern('products:list:')
     // Emit product.deleted event for real-time updates
     productEventEmitter.emit('product.deleted', {
-      productId: req.params.productId,
+      productId: String(req.params.productId),
     })
     res.status(200).json(ApiResponse.success({ deleted: true }))
   }),

@@ -6,8 +6,8 @@ import type { UseCaseContext, PaginatedResult } from '../../types/global.types'
 import type { ProductDocument } from '../../repositories/models/product.model'
 
 export const ProductFiltersDto = z.object({
-  page: z.string().optional().transform((v) => (v ? Number(v) : 1)),
-  limit: z.string().optional().transform((v) => (v ? Math.min(Number(v), 50) : 20)),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
   category: z.string().trim().max(100).optional(),
   search: z.string().trim().max(200).optional(),
 })

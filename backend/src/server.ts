@@ -6,16 +6,18 @@ import mongoose from 'mongoose'
 import { dbConfig } from './config/modules/db.config'
 import { initializeSocketEngine } from './socket/socket.engine'
 
-// Handle unhandled promise rejections
+// Handle unhandled promise rejections - DON'T exit
 process.on('unhandledRejection', (reason, promise) => {
-  log.error({ reason, promise }, 'Unhandled Rejection at:')
-  // Don't exit - just log it
+  console.error('[UNHANDLED REJECTION] reason:', reason)
+  log.error({ reason, promise }, 'Unhandled Rejection')
+  // IMPORTANT: Don't call process.exit() - just log it
 })
 
-// Handle uncaught exceptions
+// Handle uncaught exceptions - DON'T exit
 process.on('uncaughtException', (error) => {
+  console.error('[UNCAUGHT EXCEPTION] error:', error)
   log.error({ error }, 'Uncaught Exception')
-  // Don't exit - just log it
+  // IMPORTANT: Don't call process.exit() - just log it
 })
 
 async function connectWithRetry(
@@ -92,16 +94,6 @@ async function bootstrap(): Promise<void> {
 
     process.on('SIGTERM', () => shutdown('SIGTERM'))
     process.on('SIGINT', () => shutdown('SIGINT'))
-
-    process.on('unhandledRejection', (reason: unknown) => {
-      log.error({ reason }, 'Unhandled promise rejection')
-      shutdown('unhandledRejection')
-    })
-
-    process.on('uncaughtException', (error: Error) => {
-      log.error({ err: error }, 'Uncaught exception')
-      shutdown('uncaughtException')
-    })
   } catch (error) {
     log.error({ err: error }, 'Fatal error during bootstrap')
     process.exit(1)

@@ -6,6 +6,18 @@ import mongoose from 'mongoose'
 import { dbConfig } from './config/modules/db.config'
 import { initializeSocketEngine } from './socket/socket.engine'
 
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  log.error({ reason, promise }, 'Unhandled Rejection at:')
+  // Don't exit - just log it
+})
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  log.error({ error }, 'Uncaught Exception')
+  // Don't exit - just log it
+})
+
 async function connectWithRetry(
   uri: string,
   attempts: number,

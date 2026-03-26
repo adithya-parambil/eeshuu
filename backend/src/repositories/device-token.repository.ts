@@ -79,10 +79,15 @@ export async function getUserDeviceTokens(userId: string): Promise<string[]> {
  * Get all device tokens for delivery partners (for broadcasting)
  */
 export async function getAllDeliveryPartnerTokens(): Promise<string[]> {
-  // This would need a way to identify delivery partners
-  // For now, returns all tokens - you can filter by role if needed
-  const tokens = await DeviceTokenModel.find().select('token').lean()
-  return tokens.map((t) => t.token)
+  try {
+    // This would need a way to identify delivery partners
+    // For now, returns all tokens - you can filter by role if needed
+    const tokens = await DeviceTokenModel.find().select('token').lean()
+    return tokens.map((t) => t.token)
+  } catch (error) {
+    console.error('Error getting all device tokens:', error)
+    return []
+  }
 }
 
 /**

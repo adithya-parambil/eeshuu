@@ -78,16 +78,22 @@ export function setupOrderNamespace(io: SocketIOServer): void {
     // Mirror to admin dashboard
     broadcastToRoom(adminNsp, RoomPatterns.ADMIN(), EVENTS.ORDER_NEW, event)
     
-    // Send push notifications to all delivery partners
-    getAllDeliveryPartnerTokens().then(partnerTokens => {
-      if (partnerTokens.length > 0) {
-        sendNewOrderAlertToPartners(
-          partnerTokens,
-          payload.orderId,
-          payload.totalAmount,
-        ).catch(err => log.error({ err }, 'Failed to send push notifications'))
+    // Send push notifications to all delivery partners (non-blocking)
+    setImmediate(async () => {
+      try {
+        const partnerTokens = await getAllDeliveryPartnerTokens()
+        if (partnerTokens.length > 0) {
+          await sendNewOrderAlertToPartners(
+            partnerTokens,
+            payload.orderId,
+            payload.totalAmount,
+          )
+          log.info({ orderId: payload.orderId, count: partnerTokens.length }, 'Push notifications sent to delivery partners')
+        }
+      } catch (err) {
+        log.error({ err, orderId: payload.orderId }, 'Failed to send push notifications')
       }
-    }).catch(err => log.error({ err }, 'Failed to get partner tokens'))
+    })
     
     metrics.increment('socket_events_total', { event: 'ORDER_NEW', result: 'success' })
     log.info({ orderId: payload.orderId }, 'v1:ORDER:NEW emitted to delivery:pool and admin:dashboard')

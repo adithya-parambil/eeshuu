@@ -7,7 +7,7 @@ import { SkeletonDeliveryCard } from '@/components/atoms/skeleton-card'
 import { useDeliveryStore } from '@/store/delivery.store'
 import { useOrderSocket } from '@/hooks/use-order-socket'
 import { ordersApi } from '@/lib/api/orders'
-import { connectSocket } from '@/lib/socket/socket-client'
+import { connectSocket, getSocket } from '@/lib/socket/socket-client'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
 import { v4 as uuidv4 } from 'uuid'
@@ -25,6 +25,19 @@ export default function DeliveryOrdersPage() {
   const pollIntervalRef = useRef<number | null>(null)
   
   console.log('[DELIVERY ORDERS PAGE] Render complete. Available orders:', availableOrders?.length)
+
+  // ── Track socket connection status ──────────────────────────────────────────
+  useEffect(() => {
+    const socket = getSocket('/order')
+    const update = () => setIsWebSocketConnected(!!socket.connected)
+    update()
+    socket.on('connect', update)
+    socket.on('disconnect', update)
+    return () => {
+      socket.off('connect', update)
+      socket.off('disconnect', update)
+    }
+  }, [])
 
   // ── Request location permission on mount for delivery partners ──────────────
   useEffect(() => {
@@ -75,47 +88,37 @@ export default function DeliveryOrdersPage() {
     setLastUpdateTime(new Date())
   }, [availableOrders])
 
-  // ── Polling fallback when WebSocket is disconnected ───────────────────────
+  // ── Polling: always-on light poll for resilience; faster when disconnected ─
   useEffect(() => {
-    let pollIntervalId: NodeJS.Timeout | null = null
-    
-    // Check connection status by looking at store state (don't create new socket!)
-    const checkConnection = () => {
-      // Just check if we have orders - if polling is working, we'll get updates
-      const hasOrders = availableOrders.length > 0
-      const isConnected = hasOrders // Simple heuristic
-      setIsWebSocketConnected(isConnected)
-    }
-    
-    // Initial check
-    checkConnection()
-    
-    // Check connection every 5 seconds
-    const checkIntervalId = setInterval(checkConnection, 5000)
+    let fastPollId: NodeJS.Timeout | null = null
+    let slowPollId: NodeJS.Timeout | null = null
 
-    // Start polling if we don't have orders
-    if (availableOrders.length === 0 && !isLoading) {
-      console.log('[DELIVERY ORDERS] No orders yet - starting polling fallback (10s interval)')
-      
-      pollIntervalId = setInterval(async () => {
-        console.log('[DELIVERY ORDERS] Polling for orders...')
-        try {
-          const res = await ordersApi.listAvailable()
-          setAvailableOrders(res.data.data)
-          setLastUpdateTime(new Date())
-          console.log('[DELIVERY ORDERS] Polling received:', res.data.data.length, 'orders')
-        } catch (err) {
-          console.error('[DELIVERY ORDERS] Polling failed:', err)
-        }
-      }, 10000)
+    const poll = async (label: string) => {
+      try {
+        const res = await ordersApi.listAvailable()
+        setAvailableOrders(res.data.data)
+        setLastUpdateTime(new Date())
+        console.log(`[DELIVERY ORDERS] ${label} poll received:`, res.data.data.length, 'orders')
+      } catch (err) {
+        console.error(`[DELIVERY ORDERS] ${label} poll failed:`, err)
+      }
     }
+
+    // Faster poll when disconnected or empty list
+    if ((!isWebSocketConnected || availableOrders.length === 0) && !isLoading) {
+      console.log('[DELIVERY ORDERS] Starting fast polling (10s) — disconnected or empty list')
+      fastPollId = setInterval(() => { void poll('Fast') }, 10000) as unknown as number
+    }
+    // Light background poll every 60s for eventual consistency
+    console.log('[DELIVERY ORDERS] Starting light background polling (60s)')
+    slowPollId = setInterval(() => { void poll('Light') }, 60000) as unknown as number
 
     return () => {
-      if (pollIntervalId) clearInterval(pollIntervalId)
-      if (checkIntervalId) clearInterval(checkIntervalId)
+      if (fastPollId) clearInterval(fastPollId)
+      if (slowPollId) clearInterval(slowPollId)
       console.log('[DELIVERY ORDERS] Cleanup complete')
     }
-  }, [availableOrders.length, isLoading])
+  }, [availableOrders.length, isLoading, isWebSocketConnected])
 
   const handleAccept = async (order: Order) => {
     setAccepting(order._id)

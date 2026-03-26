@@ -34,6 +34,7 @@ export function createApp(): { app: Express; server: HTTPServer } {
 
   // ── 3. CORS — whitelist CLIENT_URL only ───────────────────────────────────
   app.use(cors(corsConfig))
+  app.options('*', cors(corsConfig))
 
   // ── 4. Request logger (pino-http) ─────────────────────────────────────────
   app.use(pinoHttp({

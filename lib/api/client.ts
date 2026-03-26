@@ -1,25 +1,8 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
+import { tokenStore } from '@/lib/token-store'
+import { emitTokenRefreshed } from '@/lib/events/token-events'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost/api'
-
-// ─── Token storage helpers ────────────────────────────────────────────────────
-export const tokenStore = {
-  getAccess: (): string | null =>
-    typeof window !== 'undefined' ? localStorage.getItem('access_token') : null,
-  getRefresh: (): string | null =>
-    typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null,
-  set: (access: string, refresh: string) => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem('access_token', access)
-    localStorage.setItem('refresh_token', refresh)
-  },
-  clear: () => {
-    if (typeof window === 'undefined') return
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    localStorage.removeItem('auth_user')
-  },
-}
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
 export const apiClient: AxiosInstance = axios.create({
@@ -77,12 +60,7 @@ apiClient.interceptors.response.use(
         const { data } = await axios.post(`${BASE_URL}/v1/auth/refresh`, { refreshToken })
         const { accessToken, refreshToken: newRefresh } = data.data
         tokenStore.set(accessToken, newRefresh)
-        if (typeof window !== 'undefined') {
-          try {
-            const mod = await import('../socket/socket-client')
-            if (typeof mod.refreshAllSocketsAuth === 'function') mod.refreshAllSocketsAuth()
-          } catch {}
-        }
+        emitTokenRefreshed(accessToken)
         processQueue(accessToken)
         original.headers = { ...original.headers, Authorization: `Bearer ${accessToken}` }
         return apiClient(original)

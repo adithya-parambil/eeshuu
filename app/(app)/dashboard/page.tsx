@@ -2,11 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShoppingCart, Search, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ShoppingCart, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
 import { ProductCard } from '@/components/molecules/product-card'
 import { CartDrawer } from '@/components/molecules/cart-drawer'
-import { SkeletonCard } from '@/components/atoms/skeleton-card'
 import { CounterBadge } from '@/components/atoms/counter-badge'
 import { useCustomerStore } from '@/store/customer.store'
 import { productsApi } from '@/lib/api/products'
@@ -19,31 +18,18 @@ const CATEGORIES = ['All', 'Dairy', 'Bakery', 'Fruits', 'Vegetables', 'Meat', 'S
 function BackgroundOrbs() {
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
-      {/* Acid orb — top left */}
       <div
         className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full opacity-[0.05]"
-        style={{
-          background: 'radial-gradient(circle, #c8ff00, transparent 70%)',
-          filter: 'blur(60px)',
-        }}
+        style={{ background: 'radial-gradient(circle, #c8ff00, transparent 70%)', filter: 'blur(60px)' }}
       />
-      {/* Violet orb — bottom right */}
       <div
         className="absolute -bottom-40 -right-20 w-[500px] h-[500px] rounded-full opacity-[0.04]"
-        style={{
-          background: 'radial-gradient(circle, #7c3aff, transparent 70%)',
-          filter: 'blur(80px)',
-        }}
+        style={{ background: 'radial-gradient(circle, #7c3aff, transparent 70%)', filter: 'blur(80px)' }}
       />
-      {/* Subtle centre bloom */}
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] opacity-[0.03]"
-        style={{
-          background: 'radial-gradient(ellipse, #c8ff00, transparent 65%)',
-          filter: 'blur(100px)',
-        }}
+        style={{ background: 'radial-gradient(ellipse, #c8ff00, transparent 65%)', filter: 'blur(100px)' }}
       />
-      {/* Grid overlay */}
       <div
         className="absolute inset-0 opacity-[0.025]"
         style={{
@@ -68,7 +54,6 @@ function SearchBar({ value, onChange }: { value: string; onChange: (v: string) =
       transition={{ duration: 0.2 }}
       className="relative flex-1"
     >
-      {/* Glow ring on focus */}
       <AnimatePresence>
         {focused && (
           <motion.div
@@ -76,13 +61,10 @@ function SearchBar({ value, onChange }: { value: string; onChange: (v: string) =
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 rounded-2xl pointer-events-none"
-            style={{
-              boxShadow: '0 0 0 1px rgba(200,255,0,0.45), 0 0 20px rgba(200,255,0,0.08)',
-            }}
+            style={{ boxShadow: '0 0 0 1px rgba(200,255,0,0.45), 0 0 20px rgba(200,255,0,0.08)' }}
           />
         )}
       </AnimatePresence>
-
       <Search
         className={cn(
           'absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors duration-200',
@@ -98,7 +80,6 @@ function SearchBar({ value, onChange }: { value: string; onChange: (v: string) =
         className={cn(
           'w-full h-12 pl-11 pr-4 rounded-2xl text-sm text-white/90 placeholder:text-white/25',
           'outline-none transition-all duration-200',
-          /* Glass base */
           'bg-white/[0.04] backdrop-blur-xl',
           'border border-white/[0.09]',
           focused && 'bg-white/[0.07] border-transparent',
@@ -110,15 +91,9 @@ function SearchBar({ value, onChange }: { value: string; onChange: (v: string) =
 
 /* ── Category pill ───────────────────────────────────────────────────────── */
 function CategoryPill({
-  cat,
-  active,
-  onClick,
-  index,
+  cat, active, onClick, index,
 }: {
-  cat: string
-  active: boolean
-  onClick: () => void
-  index: number
+  cat: string; active: boolean; onClick: () => void; index: number
 }) {
   return (
     <motion.button
@@ -137,10 +112,7 @@ function CategoryPill({
         <motion.span
           layoutId="activePill"
           className="absolute inset-0 rounded-full"
-          style={{
-            background: 'var(--acid)',
-            boxShadow: '0 0 16px rgba(200,255,0,0.30)',
-          }}
+          style={{ background: 'var(--acid)', boxShadow: '0 0 16px rgba(200,255,0,0.30)' }}
           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         />
       )}
@@ -200,13 +172,9 @@ function GlassSkeletonCard() {
 
 /* ── Pagination ──────────────────────────────────────────────────────────── */
 function Pagination({
-  current,
-  total,
-  onChange,
+  current, total, onChange,
 }: {
-  current: number
-  total: number
-  onChange: (p: number) => void
+  current: number; total: number; onChange: (p: number) => void
 }) {
   return (
     <motion.div
@@ -232,14 +200,7 @@ function Pagination({
               ? 'shadow-[0_0_16px_rgba(200,255,0,0.35)]'
               : 'bg-white/[0.04] text-white/35 hover:bg-white/[0.08] hover:text-white/70 border border-white/[0.07]',
           )}
-          style={
-            p === current
-              ? {
-                  background: 'var(--acid)',
-                  color: '#050505',
-                }
-              : undefined
-          }
+          style={p === current ? { background: 'var(--acid)', color: '#050505' } : undefined}
         >
           {p}
         </button>
@@ -270,50 +231,7 @@ export default function DashboardPage() {
 
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
 
-  // Real-time product updates listener
-  useEffect(() => {
-    let socket: any | null = null
-    let cancelled = false
-
-    ;(async () => {
-      try {
-        const mod = await import('@/lib/socket/socket-client')
-        if (cancelled) return
-        const { connectSocket, isDuplicate } = mod
-        socket = connectSocket('/order')
-        socket.off('v1:PRODUCT:CREATED')
-        socket.off('v1:PRODUCT:UPDATED')
-        socket.off('v1:PRODUCT:DELETED')
-
-        socket.on('v1:PRODUCT:CREATED', (payload: { productId: string; eventId: string }) => {
-          if (isDuplicate(payload.eventId)) return
-          fetchProducts()
-          toast.success('New product added')
-        })
-
-        socket.on('v1:PRODUCT:UPDATED', (payload: { productId: string; eventId: string }) => {
-          if (isDuplicate(payload.eventId)) return
-          fetchProducts()
-        })
-
-        socket.on('v1:PRODUCT:DELETED', (payload: { productId: string; eventId: string }) => {
-          if (isDuplicate(payload.eventId)) return
-          setProducts(prev => prev.filter(p => p._id !== payload.productId), productsMeta!)
-          toast.error('A product was removed')
-        })
-      } catch { /* ignore */ }
-    })()
-
-    return () => {
-      cancelled = true
-      if (socket) {
-        socket.off('v1:PRODUCT:CREATED')
-        socket.off('v1:PRODUCT:UPDATED')
-        socket.off('v1:PRODUCT:DELETED')
-      }
-    }
-  }, [fetchProducts])
-
+  // ✅ STEP 1 — define fetchProducts first so the socket effect below can reference it
   const fetchProducts = useCallback(async () => {
     setProductsLoading(true)
     const id = ++reqRef.current
@@ -334,32 +252,80 @@ export default function DashboardPage() {
         setProductsLoading(false)
       }
     }
-  }, [page, category, search])
+  }, [page, category, search, setProducts, setProductsLoading])
 
+  // ✅ STEP 2 — fetch whenever filters / page change
   useEffect(() => {
     fetchProducts()
   }, [fetchProducts])
 
+  // ✅ STEP 3 — socket listener (fetchProducts is already defined above)
+  useEffect(() => {
+    let socket: any | null = null
+    let cancelled = false
+
+      ; (async () => {
+        try {
+          const mod = await import('@/lib/socket/socket-client')
+          if (cancelled) return
+          const { connectSocket, isDuplicate } = mod
+          socket = connectSocket('/order')
+          socket.off('v1:PRODUCT:CREATED')
+          socket.off('v1:PRODUCT:UPDATED')
+          socket.off('v1:PRODUCT:DELETED')
+
+          socket.on('v1:PRODUCT:CREATED', (payload: { productId: string; eventId: string }) => {
+            if (isDuplicate(payload.eventId)) return
+            fetchProducts()
+            toast.success('New product added')
+          })
+
+          socket.on('v1:PRODUCT:UPDATED', (payload: { productId: string; eventId: string }) => {
+            if (isDuplicate(payload.eventId)) return
+            fetchProducts()
+          })
+
+          socket.on('v1:PRODUCT:DELETED', (payload: { productId: string; eventId: string }) => {
+            if (isDuplicate(payload.eventId)) return
+            setProducts((prev) => prev.filter((p) => p._id !== payload.productId), productsMeta!)
+            toast.error('A product was removed')
+          })
+        } catch { /* ignore */ }
+      })()
+
+    return () => {
+      cancelled = true
+      if (socket) {
+        socket.off('v1:PRODUCT:CREATED')
+        socket.off('v1:PRODUCT:UPDATED')
+        socket.off('v1:PRODUCT:DELETED')
+      }
+    }
+  }, [fetchProducts, setProducts, productsMeta])
+
   return (
     <AppShell allowedRoles={['customer']}>
-      {/* ── Ambient background ── */}
       <BackgroundOrbs />
 
       <div className="relative px-5 md:px-8 py-8 max-w-7xl mx-auto">
 
-        {/* ── Header ───────────────────────────────────────────────────────── */}
+        {/* ── Header ── */}
         <div className="flex items-start justify-between mb-10">
           <motion.div
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
           >
-            {/* Eyebrow label */}
-           
-            <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-head)', color: 'rgba(247,244,239,0.95)' }}>
+            <h1
+              className="text-3xl font-bold tracking-tight"
+              style={{ fontFamily: 'var(--font-head)', color: 'rgba(247,244,239,0.95)' }}
+            >
               Shop
             </h1>
-            <p className="text-sm mt-1 font-medium" style={{ color: 'rgba(247,244,239,0.30)', fontFamily: 'var(--font-body)' }}>
+            <p
+              className="text-sm mt-1 font-medium"
+              style={{ color: 'rgba(247,244,239,0.30)', fontFamily: 'var(--font-body)' }}
+            >
               {productsMeta
                 ? `${productsMeta.total.toLocaleString()} products available`
                 : 'Browse products'}
@@ -369,7 +335,7 @@ export default function DashboardPage() {
           <CartButton count={cartCount} onClick={() => setCartOpen(true)} />
         </div>
 
-        {/* ── Search + category strip ───────────────────────────────────── */}
+        {/* ── Search + category strip ── */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -378,13 +344,8 @@ export default function DashboardPage() {
         >
           <SearchBar
             value={search}
-            onChange={(v) => {
-              setSearch(v)
-              setPage(1)
-            }}
+            onChange={(v) => { setSearch(v); setPage(1) }}
           />
-
-          {/* Category pills row */}
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
             {CATEGORIES.map((cat, i) => (
               <CategoryPill
@@ -392,16 +353,13 @@ export default function DashboardPage() {
                 cat={cat}
                 active={category === cat}
                 index={i}
-                onClick={() => {
-                  setCategory(cat)
-                  setPage(1)
-                }}
+                onClick={() => { setCategory(cat); setPage(1) }}
               />
             ))}
           </div>
         </motion.div>
 
-        {/* ── Section label ─────────────────────────────────────────────── */}
+        {/* ── Section label ── */}
         <AnimatePresence mode="wait">
           <motion.p
             key={category + search}
@@ -414,7 +372,7 @@ export default function DashboardPage() {
           </motion.p>
         </AnimatePresence>
 
-        {/* ── Product grid ──────────────────────────────────────────────── */}
+        {/* ── Product grid ── */}
         <AnimatePresence mode="wait">
           {productsLoading ? (
             <motion.div
@@ -424,9 +382,7 @@ export default function DashboardPage() {
               exit={{ opacity: 0 }}
               className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
             >
-              {Array.from({ length: 10 }).map((_, i) => (
-                <GlassSkeletonCard key={i} />
-              ))}
+              {Array.from({ length: 10 }).map((_, i) => <GlassSkeletonCard key={i} />)}
             </motion.div>
           ) : products.length === 0 ? (
             <motion.div
@@ -436,20 +392,13 @@ export default function DashboardPage() {
               exit={{ opacity: 0 }}
               className="flex flex-col items-center justify-center py-28"
             >
-              {/* Glass pill container */}
               <div
                 className="flex flex-col items-center gap-4 px-10 py-10 rounded-3xl border border-white/[0.07]"
-                style={{
-                  background: 'rgba(255,255,255,0.025)',
-                  backdropFilter: 'blur(20px)',
-                }}
+                style={{ background: 'rgba(255,255,255,0.025)', backdropFilter: 'blur(20px)' }}
               >
                 <div
                   className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                  style={{
-                    background: 'rgba(200,255,0,0.05)',
-                    border: '1px solid rgba(200,255,0,0.12)',
-                  }}
+                  style={{ background: 'rgba(200,255,0,0.05)', border: '1px solid rgba(200,255,0,0.12)' }}
                 >
                   <Search className="w-7 h-7" style={{ color: 'rgba(200,255,0,0.35)' }} />
                 </div>
@@ -481,7 +430,7 @@ export default function DashboardPage() {
           )}
         </AnimatePresence>
 
-        {/* ── Pagination ────────────────────────────────────────────────── */}
+        {/* ── Pagination ── */}
         {productsMeta && productsMeta.totalPages > 1 && (
           <Pagination
             current={page}

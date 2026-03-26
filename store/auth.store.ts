@@ -1,7 +1,7 @@
 'use client'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { tokenStore } from '@/lib/api/client'
+import { tokenStore } from '@/lib/token-store'
 import { authApi } from '@/lib/api/auth'
 import type { AuthUser } from '@/types'
 

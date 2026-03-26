@@ -1,5 +1,6 @@
 import { io, type Socket } from 'socket.io-client'
-import { tokenStore } from '@/lib/api/client'
+import { tokenStore } from '@/lib/token-store'
+import { onTokenRefreshed } from '@/lib/events/token-events'
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? 'http://localhost'
 
@@ -69,4 +70,12 @@ export function refreshAllSocketsAuth() {
       socket.connect()
     }
   }
+}
+
+let subscribed = false
+if (!subscribed) {
+  onTokenRefreshed(() => {
+    refreshAllSocketsAuth()
+  })
+  subscribed = true
 }

@@ -421,10 +421,12 @@ export function setupOrderNamespace(io: SocketIOServer): void {
         quantity?: number
         eventId?: string 
       },
-      ack: AckFn,
+      ack?: any,
     ) => {
+      const sendAck = typeof ack === 'function' ? ack : () => {}
+      
       if (role !== 'customer') {
-        ack({ ok: false, error: 'FORBIDDEN' })
+        sendAck({ ok: false, error: 'FORBIDDEN' })
         return
       }
 
@@ -442,10 +444,10 @@ export function setupOrderNamespace(io: SocketIOServer): void {
         // Send to user's personal room (all their devices)
         broadcastToRoom(nsp, userRoom, EVENTS.CART_UPDATED, event)
         
-        ack({ ok: true })
+        sendAck({ ok: true })
       } catch (err) {
         log.error({ err, userId }, 'CART_UPDATED handler error')
-        ack({ ok: false, error: 'INTERNAL_ERROR' })
+        sendAck({ ok: false, error: 'INTERNAL_ERROR' })
       }
     })
 

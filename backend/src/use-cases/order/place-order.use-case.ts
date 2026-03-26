@@ -40,53 +40,65 @@ export class PlaceOrderUseCase {
     dto: PlaceOrderDtoType,
     ctx: UseCaseContext & { customerId: string },
   ): Promise<OrderDocument> {
-    log.info({ requestId: ctx.requestId, customerId: ctx.customerId }, 'PlaceOrderUseCase: start')
+    try {
+      log.info({ requestId: ctx.requestId, customerId: ctx.customerId }, 'PlaceOrderUseCase: start')
 
-    const enrichedItems = await Promise.all(
-      dto.items.map(async (item) => {
-        const product = await productService.validateStock(item.productId, item.quantity)
-        return {
-          productId: item.productId,
-          name: product.name,
-          price: product.price,
-          quantity: item.quantity,
-        }
-      }),
-    )
-
-    const pricing = orderService.calculatePricing(enrichedItems)
-
-    const order = await withTransaction(async (session) => {
-      return orderWriteRepo.create(
-        {
-          customerId: ctx.customerId,
-          items: enrichedItems,
-          pricing,
-          totalAmount: pricing.total,
-          deliveryAddress: dto.deliveryAddress,
-        },
-        session,
+      const enrichedItems = await Promise.all(
+        dto.items.map(async (item) => {
+          const product = await productService.validateStock(item.productId, item.quantity)
+          return {
+            productId: item.productId,
+            name: product.name,
+            price: product.price,
+            quantity: item.quantity,
+          }
+        }),
       )
-    })
 
-    await cacheService.invalidatePattern('orders:available')
+      const pricing = orderService.calculatePricing(enrichedItems)
 
-    this.eventEmitter.emit('order.placed', {
-      orderId: String(order._id),
-      customerId: ctx.customerId,
-      items: enrichedItems,
-      totalAmount: pricing.total,
-      address: dto.deliveryAddress,
-    })
+      const order = await withTransaction(async (session) => {
+        return orderWriteRepo.create(
+          {
+            customerId: ctx.customerId,
+            items: enrichedItems,
+            pricing,
+            totalAmount: pricing.total,
+            deliveryAddress: dto.deliveryAddress,
+          },
+          session,
+        )
+      })
 
-    log.info({ orderId: String(order._id) }, 'order.placed event emitted')
+      await cacheService.invalidatePattern('orders:available')
 
-    metrics.increment('order_placed_total', { role: 'customer' })
-    log.info(
-      { orderId: String(order._id), customerId: ctx.customerId, requestId: ctx.requestId },
-      'PlaceOrderUseCase: complete',
-    )
-    return order
+      this.eventEmitter.emit('order.placed', {
+        orderId: String(order._id),
+        customerId: ctx.customerId,
+        items: enrichedItems,
+        totalAmount: pricing.total,
+        address: dto.deliveryAddress,
+      })
+
+      log.info({ orderId: String(order._id) }, 'order.placed event emitted')
+
+      metrics.increment('order_placed_total', { role: 'customer' })
+      log.info(
+        { orderId: String(order._id), customerId: ctx.customerId, requestId: ctx.requestId },
+        'PlaceOrderUseCase: complete',
+      )
+      return order
+    } catch (error: any) {
+      log.error({ 
+        error: {
+          message: error.message,
+          stack: error.stack,
+        },
+        dto,
+        ctx 
+      }, 'PlaceOrderUseCase: failed')
+      throw error
+    }
   }
 }
 

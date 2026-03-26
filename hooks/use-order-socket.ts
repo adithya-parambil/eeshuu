@@ -29,7 +29,10 @@ export function useOrderSocket() {
   const reconnectRef = useRef(false)
 
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      console.log('[SOCKET HOOK] No user, skipping')
+      return
+    }
 
     console.log('[SOCKET HOOK] Starting for user:', { userId: user.userId, role: user.role })
     const socket = connectSocket('/order')

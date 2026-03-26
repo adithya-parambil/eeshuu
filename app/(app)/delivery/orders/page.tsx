@@ -25,38 +25,37 @@ export default function DeliveryOrdersPage() {
   useEffect(() => {
     const requestLocationPermission = async () => {
       if (typeof navigator === 'undefined' || !navigator.geolocation) return
-      
+
       try {
-        // Check current permission state
         if (navigator.permissions) {
           const status = await navigator.permissions.query({ name: 'geolocation' })
-          if (status.state === 'granted') return // Already granted
-          if (status.state === 'denied') return // User denied, don't ask again
+          if (status.state === 'granted') return
+          if (status.state === 'denied') return
         }
-        
-        // Request permission by attempting to get current position
+
         navigator.geolocation.getCurrentPosition(
-          () => {
-            // Permission granted
-            console.log('Location permission granted')
-          },
+          () => { console.log('Location permission granted') },
           (err) => {
             if (err.code === err.PERMISSION_DENIED) {
               console.log('Location permission denied by user')
             }
           },
-          { enableHighAccuracy: true, timeout: 10000 }
+          { enableHighAccuracy: true, timeout: 10000 },
         )
       } catch (err) {
         console.error('Error requesting location permission:', err)
       }
     }
-    
+
     requestLocationPermission()
   }, [])
 
+  // ── Initial fetch of available orders ──────────────────────────────────────
+  // NOTE: pool re-join and active-order refetch are handled entirely by
+  // useOrderSocket (via the socket.connected early-fire path). No need to
+  // emit PARTNER:STATUS here anymore.
   useEffect(() => {
-    const fetch = async () => {
+    const fetchOrders = async () => {
       setLoading(true)
       try {
         const res = await ordersApi.listAvailable()
@@ -65,14 +64,7 @@ export default function DeliveryOrdersPage() {
       } catch { /* ignore */ }
       finally { setLoading(false) }
     }
-    fetch()
-    // Ensure we are in the delivery pool for ORDER_NEW broadcasts when page loads
-    try {
-      if (isOnline) {
-        const socket = connectSocket('/order')
-        socket.emit('v1:PARTNER:STATUS', { status: 'online', eventId: uuidv4() }, () => {})
-      }
-    } catch { /* ignore */ }
+    fetchOrders()
   }, [])
 
   // Log when available orders change
@@ -84,7 +76,6 @@ export default function DeliveryOrdersPage() {
   const handleAccept = async (order: Order) => {
     setAccepting(order._id)
     try {
-      // Try REST first
       const res = await ordersApi.accept(order._id)
       setActiveOrder(res.data.data)
       removeAvailableOrder(order._id)
@@ -112,7 +103,7 @@ export default function DeliveryOrdersPage() {
     const socket = connectSocket('/order')
     const newStatus = !isOnline
     setOnline(newStatus)
-    socket.emit('v1:PARTNER:STATUS', { status: newStatus ? 'online' : 'offline', eventId: uuidv4() }, () => {})
+    socket.emit('v1:PARTNER:STATUS', { status: newStatus ? 'online' : 'offline', eventId: uuidv4() }, () => { })
     toast(newStatus ? 'You are now online' : 'You are now offline')
   }
 
@@ -136,11 +127,10 @@ export default function DeliveryOrdersPage() {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={toggleOnline}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
-              isOnline
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${isOnline
                 ? 'border-[rgba(200,255,0,0.25)]'
                 : 'bg-white/[0.04] text-white/40 border-white/[0.08]'
-            }`}
+              }`}
             style={isOnline ? { background: 'rgba(200,255,0,0.10)', color: 'var(--acid)' } : undefined}
           >
             {isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}

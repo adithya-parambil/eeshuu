@@ -6,6 +6,7 @@ import { useCustomerStore } from '@/store/customer.store'
 import { useDeliveryStore } from '@/store/delivery.store'
 import { useAuthStore } from '@/store/auth.store'
 import { ordersApi } from '@/lib/api/orders'
+import { v4 as uuidv4 } from 'uuid'
 import type {
   OrderNewPayload,
   OrderAcceptedPayload,
@@ -63,6 +64,16 @@ export function useOrderSocket() {
       } catch { /* ignore */ }
     }
 
+    // Re-join the delivery pool so ORDER_NEW broadcasts reach this partner.
+    // Must happen on every mount (page navigation) — not just on socket reconnect —
+    // because Socket.IO rooms are per-connection and the connection may already be
+    // alive from a previous page, meaning 'connect' will never fire again.
+    const rejoinDeliveryPool = () => {
+      if (user.role !== 'delivery') return
+      const isOnline = useDeliveryStore.getState().isOnline
+      socket.emit('v1:PARTNER:STATUS', { status: isOnline ? 'online' : 'offline', eventId: uuidv4() }, () => { })
+    }
+
     socket.on('connect', () => {
       if (reconnectRef.current) {
         // Rejoin rooms and refetch on reconnect
@@ -70,7 +81,17 @@ export function useOrderSocket() {
         refetchActiveOrder()
       }
       reconnectRef.current = true
+      // Always rejoin the delivery pool on (re)connect
+      rejoinDeliveryPool()
     })
+
+    // FIX 1: If the socket is already connected when the hook mounts (e.g. after
+    // client-side navigation), 'connect' will never fire. Refetch and rejoin immediately.
+    if (socket.connected) {
+      rejoinDeliveryPool()
+      refetchAvailable()
+      refetchActiveOrder()
+    }
 
     socket.on('disconnect', () => {
       toast.error('Connection lost — reconnecting…', { id: 'socket-disconnect' })

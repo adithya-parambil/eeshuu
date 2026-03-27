@@ -49,7 +49,7 @@ type GeoPermission = 'unknown' | 'granted' | 'denied' | 'prompt' | 'requesting'
 export default function DeliveryActivePage() {
   useOrderSocket()
   const {
-    activeOrder, setActiveOrder, updateActiveOrderStatus,
+    activeOrder, setActiveOrder, updateActiveOrder,
     partnerCoords, setPartnerCoords,
     showDeliveredPopup, setShowDeliveredPopup,
   } = useDeliveryStore()
@@ -282,8 +282,14 @@ export default function DeliveryActivePage() {
     
     setUpdating(true)
     try {
-      await ordersApi.updateStatus(activeOrder._id, nextAction.to)
-      updateActiveOrderStatus(nextAction.to)
+      const res = await ordersApi.updateStatus(activeOrder._id, nextAction.to)
+      // Always sync state from the server response
+      if (res.data.success && res.data.data) {
+        setActiveOrder(res.data.data)
+      } else {
+        updateActiveOrder({ status: nextAction.to })
+      }
+
       if (nextAction.to === 'DELIVERED') {
         stopLocationTracking()
         setPartnerCoords(null)
@@ -305,8 +311,12 @@ export default function DeliveryActivePage() {
     setUpdating(true)
     setShowForceDeliverModal(false)
     try {
-      await ordersApi.updateStatus(activeOrder._id, 'DELIVERED')
-      updateActiveOrderStatus('DELIVERED')
+      const res = await ordersApi.updateStatus(activeOrder._id, 'DELIVERED')
+      if (res.data.success && res.data.data) {
+        setActiveOrder(res.data.data)
+      } else {
+        updateActiveOrder({ status: 'DELIVERED' })
+      }
       stopLocationTracking()
       setPartnerCoords(null)
       setMapFullscreen(false)

@@ -48,29 +48,40 @@ export class UpdateOrderStatusUseCase {
       }
     }
 
-    // Enforce state machine rules
+    // Enforce state machine rules — skip if already in requested status (idempotency)
+    if (current.status === dto.status) {
+      log.info({ requestId: ctx.requestId, orderId: dto.orderId, status: dto.status }, 'UpdateOrderStatusUseCase: status already up to date')
+      return current
+    }
+
     orderService.validateTransition(current.status as OrderStatus, dto.status as OrderStatus)
 
     const updated = await withTransaction(async (session) => {
       const doc = await orderWriteRepo.updateStatus(dto.orderId, dto.status as OrderStatus, ctx.actorId, session, ctx.actorRole)
-      if (!doc) return null
-
-      // Credit delivery partner commission on DELIVERED
-      if (dto.status === 'DELIVERED' && ctx.actorRole === 'delivery') {
-        const subtotal = doc.pricing?.subtotal ?? doc.totalAmount
-        const commission = parseFloat((subtotal * PRICING.COMMISSION_RATE).toFixed(2))
-        await userWriteRepo.adjustWallet(ctx.actorId, commission, session, {
-          type: 'COMMISSION',
-          orderId: dto.orderId,
-          note: `Commission for order ${dto.orderId}`,
-        })
+      if (doc) {
+        // Credit delivery partner commission on DELIVERED
+        if (dto.status === 'DELIVERED' && ctx.actorRole === 'delivery') {
+          const subtotal = doc.pricing?.subtotal ?? doc.totalAmount
+          const commission = parseFloat((subtotal * PRICING.COMMISSION_RATE).toFixed(2))
+          await userWriteRepo.adjustWallet(ctx.actorId, commission, session, {
+            type: 'COMMISSION',
+            orderId: dto.orderId,
+            note: `Commission for order ${dto.orderId}`,
+          })
+        }
       }
-
       return doc
     })
 
+    // If updateStatus returned null, it might be because of status: { $ne: status } filter
+    // (status already changed) or the order truly doesn't exist/partner mismatch.
     if (!updated) {
-      throw new NotFoundError(`Order ${dto.orderId} not found after update`, 'ORDER_NOT_FOUND')
+      const reCheck = await orderReadRepo.findById(dto.orderId)
+      if (reCheck && reCheck.status === dto.status) {
+        log.info({ requestId: ctx.requestId, orderId: dto.orderId, status: dto.status }, 'UpdateOrderStatusUseCase: status already up to date (after race)')
+        return reCheck
+      }
+      throw new NotFoundError(`Order ${dto.orderId} not found or permission denied`, 'ORDER_NOT_FOUND')
     }
 
     await cacheService.del(`order:${dto.orderId}`)

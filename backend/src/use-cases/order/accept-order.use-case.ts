@@ -30,6 +30,11 @@ export class AcceptOrderUseCase {
     // ── Enforce one active order per delivery partner ──────────────────────
     const existing = await orderReadRepo.findActiveByDeliveryPartner(dto.deliveryPartnerId)
     if (existing) {
+      // If it's the SAME order, return it (idempotency)
+      if (existing._id.toString() === dto.orderId) {
+        log.info({ requestId: ctx.requestId, orderId: dto.orderId }, 'AcceptOrderUseCase: already accepted by this partner')
+        return existing
+      }
       throw new ConflictError(
         'You already have an active order. Complete it before accepting another.',
         'PARTNER_HAS_ACTIVE_ORDER',

@@ -76,7 +76,11 @@ export class OrderWriteRepository {
   ): Promise<OrderDocument | null> {
     // For delivery partners: compound filter ensures only the assigned partner can update
     // For admins: filter by orderId only
-    const filter: Record<string, unknown> = { _id: { $eq: new mongoose.Types.ObjectId(orderId) } }
+    // filter includes status: { $ne: status } to prevent duplicate history entries
+    const filter: Record<string, unknown> = { 
+      _id: { $eq: new mongoose.Types.ObjectId(orderId) },
+      status: { $ne: status }
+    }
     if (actorRole === 'delivery') {
       filter['deliveryPartnerId'] = { $eq: new mongoose.Types.ObjectId(actorId) }
     }

@@ -72,6 +72,8 @@ function CartItem({
   onDec: () => void
   onRemove: () => void
 }) {
+  if (!item.product) return null
+
   return (
     <motion.div
       layout
@@ -227,7 +229,10 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 
   const { register, handleSubmit, formState: { errors }, setValue, getValues } = useForm<AddressForm>()
 
-  const subtotal = cart.reduce((s, i) => s + i.product.price * i.quantity, 0)
+  const subtotal = cart.reduce((s, i) => {
+    const price = i.product?.price ?? 0
+    return s + price * i.quantity
+  }, 0)
   const tax      = parseFloat((subtotal * TAX_RATE).toFixed(2))
   const total    = parseFloat((subtotal + tax + DELIVERY_FEE + PLATFORM_FEE).toFixed(2))
 

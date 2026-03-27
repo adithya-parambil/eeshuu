@@ -20,10 +20,13 @@ export function useCartSync() {
     try {
       const res = await cartApi.get()
       if (res.data.success && res.data.data.items) {
-        const serverCart = res.data.data.items.map((i: any) => ({
-          product: i.productId,
-          quantity: i.quantity
-        }))
+        // Filter out items where productId (the populated product) is null
+        const serverCart = res.data.data.items
+          .filter((i: any) => i.productId != null)
+          .map((i: any) => ({
+            product: i.productId,
+            quantity: i.quantity
+          }))
         setCart(serverCart)
       }
     } catch (err) {
@@ -94,10 +97,12 @@ export function useCartSync() {
       try {
         // Update on server
         const currentCart = useCustomerStore.getState().cart
-        const items = currentCart.map(i => ({
-          productId: i.product._id,
-          quantity: i.quantity
-        }))
+        const items = currentCart
+          .filter(i => i.product != null)
+          .map(i => ({
+            productId: i.product._id,
+            quantity: i.quantity
+          }))
         await cartApi.update(items)
 
         const mod = await import('@/lib/socket/socket-client')

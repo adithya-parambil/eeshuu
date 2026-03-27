@@ -15,25 +15,26 @@ export function useCartSync() {
   const lastSyncRef = useRef<number>(0)
   const isLocalUpdateRef = useRef(false)
 
+  const fetchCartFromServer = useCallback(async () => {
+    if (!user || user.role !== 'customer') return
+    try {
+      const res = await cartApi.get()
+      if (res.data.success && res.data.data.items) {
+        const serverCart = res.data.data.items.map((i: any) => ({
+          product: i.productId,
+          quantity: i.quantity
+        }))
+        setCart(serverCart)
+      }
+    } catch (err) {
+      console.error('Failed to fetch cart from server:', err)
+    }
+  }, [user, setCart])
+
   // Fetch cart from server on mount
   useEffect(() => {
-    if (!user || user.role !== 'customer') return
-    
-    ;(async () => {
-      try {
-        const res = await cartApi.get()
-        if (res.data.success && res.data.data.items) {
-          const serverCart = res.data.data.items.map((i: any) => ({
-            product: i.productId,
-            quantity: i.quantity
-          }))
-          setCart(serverCart)
-        }
-      } catch (err) {
-        console.error('Failed to fetch cart from server:', err)
-      }
-    })()
-  }, [user, setCart])
+    fetchCartFromServer()
+  }, [fetchCartFromServer])
 
   useEffect(() => {
     if (!user || user.role !== 'customer') return
@@ -58,39 +59,16 @@ export function useCartSync() {
         if (mod.isDuplicate(payload.eventId)) return
         if (payload.userId !== user.userId) return
         
-        if (isLocalUpdateRef.current) {
-          isLocalUpdateRef.current = false
-          return
-        }
-        
         const now = Date.now()
         if (now - lastSyncRef.current < 500) return
         
-        try {
-          switch (payload.action) {
-            case 'ADD':
-              if (payload.productId && payload.quantity) {
-                toast.info('Item added to cart from another device')
-              }
-              break
-            case 'REMOVE':
-              if (payload.productId) {
-                removeFromCart(payload.productId)
-                toast.info('Item removed from cart from another device')
-              }
-              break
-            case 'UPDATE':
-              if (payload.productId && payload.quantity !== undefined) {
-                updateCartQty(payload.productId, payload.quantity)
-              }
-              break
-            case 'CLEAR':
-              useCustomerStore.getState().clearCart()
-              toast.info('Cart cleared from another device')
-              break
-          }
-        } catch (err) {
-          console.error('Error syncing cart:', err)
+        // Reliability: re-fetch whole cart on any remote change
+        fetchCartFromServer()
+        
+        if (payload.action === 'CLEAR') {
+          toast.info('Cart cleared from another device')
+        } else {
+          toast.info('Cart updated from another device')
         }
       })
     })()
@@ -99,7 +77,7 @@ export function useCartSync() {
       cancelled = true
       if (socket) socket.off(EVENTS.CART_UPDATED)
     }
-  }, [user])
+  }, [user, fetchCartFromServer])
 
   // Function to broadcast cart update to other devices
   const broadcastCartAction = useCallback((

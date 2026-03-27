@@ -446,8 +446,8 @@ export function setupOrderNamespace(io: SocketIOServer): void {
           quantity: data.quantity,
         })
         
-        // Send to user's personal room (all their devices)
-        broadcastToRoom(nsp, userRoom, EVENTS.CART_UPDATED, event)
+        // Send to user's personal room (all their OTHER devices)
+        socket.to(userRoom).emit(EVENTS.CART_UPDATED, event)
         
         sendAck({ ok: true })
       } catch (err) {

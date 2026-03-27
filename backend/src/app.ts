@@ -23,6 +23,7 @@ import disputeRoutes from './modules/dispute/dispute.routes'
 import walletRoutes from './modules/wallet/wallet.routes'
 import paymentRoutes from './modules/payment/payment.routes'
 import deviceRoutes from './modules/device/device.routes'
+import cartRoutes from './modules/cart/cart.routes'
 
 export function createApp(): { app: Express; server: HTTPServer } {
   const app = express()
@@ -93,6 +94,7 @@ export function createApp(): { app: Express; server: HTTPServer } {
   app.use('/api/v1/wallet', walletRoutes)
   app.use('/api/v1/payment', paymentRoutes)
   app.use('/api/v1/device', deviceRoutes)
+  app.use('/api/v1/cart', cartRoutes)
 
   // ── 9. 404 fallback ───────────────────────────────────────────────────────
   app.use(notFoundHandler)

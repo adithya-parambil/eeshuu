@@ -2,6 +2,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useCustomerStore } from '@/store/customer.store'
 import { useAuthStore } from '@/store/auth.store'
+import { cartApi } from '@/lib/api/cart'
 import { toast } from 'sonner'
 
 const EVENTS = {
@@ -10,9 +11,29 @@ const EVENTS = {
 
 export function useCartSync() {
   const user = useAuthStore((s) => s.user)
-  const { cart, addToCart, removeFromCart, updateCartQty } = useCustomerStore()
+  const { cart, addToCart, removeFromCart, updateCartQty, setCart } = useCustomerStore()
   const lastSyncRef = useRef<number>(0)
   const isLocalUpdateRef = useRef(false)
+
+  // Fetch cart from server on mount
+  useEffect(() => {
+    if (!user || user.role !== 'customer') return
+    
+    ;(async () => {
+      try {
+        const res = await cartApi.get()
+        if (res.data.success && res.data.data.items) {
+          const serverCart = res.data.data.items.map((i: any) => ({
+            product: i.productId,
+            quantity: i.quantity
+          }))
+          setCart(serverCart)
+        }
+      } catch (err) {
+        console.error('Failed to fetch cart from server:', err)
+      }
+    })()
+  }, [user, setCart])
 
   useEffect(() => {
     if (!user || user.role !== 'customer') return
@@ -93,6 +114,14 @@ export function useCartSync() {
     
     ;(async () => {
       try {
+        // Update on server
+        const currentCart = useCustomerStore.getState().cart
+        const items = currentCart.map(i => ({
+          productId: i.product._id,
+          quantity: i.quantity
+        }))
+        await cartApi.update(items)
+
         const mod = await import('@/lib/socket/socket-client')
         const socket = mod.getSocket('/order')
         socket.emit(EVENTS.CART_UPDATED, {
@@ -102,7 +131,9 @@ export function useCartSync() {
           quantity,
           timestamp: Date.now(),
         })
-      } catch {}
+      } catch (err) {
+        console.error('Failed to sync cart to server:', err)
+      }
     })()
   }, [user])
 

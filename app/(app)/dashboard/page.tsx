@@ -259,6 +259,16 @@ export default function DashboardPage() {
     fetchProducts()
   }, [fetchProducts])
 
+  // ✅ STEP 2.5 — Polling every 10s for product freshness (resilience fallback)
+  useEffect(() => {
+    let pollId: NodeJS.Timeout | null = null
+    const poll = async () => {
+      try { await fetchProducts() } catch { /* ignore */ }
+    }
+    pollId = setInterval(() => { void poll() }, 10_000)
+    return () => { if (pollId) clearInterval(pollId) }
+  }, [fetchProducts])
+
   // ✅ STEP 3 — socket listener (fetchProducts is already defined above)
   useEffect(() => {
     let socket: any | null = null

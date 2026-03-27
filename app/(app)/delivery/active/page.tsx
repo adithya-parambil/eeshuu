@@ -126,6 +126,29 @@ export default function DeliveryActivePage() {
       })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Polling: always-on every 10s for consistent freshness ───────────────────
+  useEffect(() => {
+    let pollId: NodeJS.Timeout | null = null
+    const poll = async () => {
+      try {
+        const res = await ordersApi.getMyActive()
+        const order = res.data.data ?? null
+        if (order) {
+          setActiveOrder(order)
+        } else {
+          // If active order is gone (e.g. cancelled/delivered from other device)
+          // we should probably redirect back to available orders list
+          if (activeOrder) {
+            setActiveOrder(null)
+            window.location.href = '/delivery/orders'
+          }
+        }
+      } catch { /* ignore */ }
+    }
+    pollId = setInterval(() => { void poll() }, 10_000)
+    return () => { if (pollId) clearInterval(pollId) }
+  }, [activeOrder, setActiveOrder])
+
   // ── Check geolocation permission on mount ──────────────────────────────────
   useEffect(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -341,33 +364,6 @@ export default function DeliveryActivePage() {
 
           {/* ── GPS permission cards ── */}
           <AnimatePresence>
-            {/* Geocoding status debug card */}
-            {isActiveStatus && geocodingStatus !== 'idle' && (
-              <motion.div
-                key="geocoding-status"
-                initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                transition={spring}
-                className="rounded-2xl p-4 flex items-center gap-3 text-xs"
-                style={{ 
-                  background: geocodingStatus === 'loading' ? 'rgba(200,255,0,0.05)' : 
-                              geocodingStatus === 'success' ? 'rgba(52,211,153,0.05)' : 
-                              'rgba(239,68,68,0.05)',
-                  border: geocodingStatus === 'loading' ? '1px solid rgba(200,255,0,0.18)' : 
-                          geocodingStatus === 'success' ? '1px solid rgba(52,211,153,0.18)' : 
-                          '1px solid rgba(239,68,68,0.18)'
-                }}
-              >
-                {geocodingStatus === 'loading' && <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--acid)' }} />}
-                {geocodingStatus === 'success' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
-                {geocodingStatus === 'error' && <MapPinOff className="w-4 h-4 text-red-400" />}
-                <span className="text-white/70">
-                  {geocodingStatus === 'loading' && 'Finding destination coordinates...'}
-                  {geocodingStatus === 'success' && `Destination found: ${destCoords?.lat.toFixed(6)}, ${destCoords?.lng.toFixed(6)}`}
-                  {geocodingStatus === 'error' && 'Could not find destination coordinates'}
-                </span>
-              </motion.div>
-            )}
-
             {isActiveStatus && geoPermission === 'prompt' && (
               <motion.div
                 key="geo-prompt"

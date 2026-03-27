@@ -90,7 +90,9 @@ export const useAuthStore = create<AuthState>()(
         tokenStore.clear()
         // Clear role-specific stores to prevent stale data bleeding between sessions
         const { useDeliveryStore } = await import('@/store/delivery.store')
+        const { useCustomerStore } = await import('@/store/customer.store')
         useDeliveryStore.getState().setActiveOrder(null)
+        useCustomerStore.getState().clearCart()
         set({ user: null, isAuthenticated: false })
       },
     }),

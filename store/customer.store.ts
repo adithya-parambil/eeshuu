@@ -28,6 +28,7 @@ interface CustomerState {
   removeFromCart: (productId: string) => void
   updateCartQty: (productId: string, quantity: number) => void
   clearCart: () => void
+  setCart: (cart: CartItem[]) => void
   setOrders: (orders: Order[], meta: ApiMeta) => void
   setOrdersLoading: (v: boolean) => void
   setActiveOrder: (order: Order | null) => void
@@ -83,6 +84,8 @@ export const useCustomerStore = create<CustomerState>()(
         set({ cart: [] })
         // Broadcast to other devices (will be called in component)
       },
+
+      setCart: (cart) => set({ cart }),
 
       setOrders: (orders, meta) => set({ orders, ordersMeta: meta }),
       setOrdersLoading: (v) => set({ ordersLoading: v }),

@@ -69,6 +69,16 @@ export default function OrdersPage() {
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
+  /* background polling every 10s for resilience across tabs/devices */
+  useEffect(() => {
+    let pollId: NodeJS.Timeout | null = null
+    const poll = async () => {
+      try { await fetchOrders() } catch { /* ignore */ }
+    }
+    pollId = setInterval(() => { void poll() }, 10_000)
+    return () => { if (pollId) clearInterval(pollId) }
+  }, [fetchOrders])
+
   /* pagination helpers */
   const totalPages  = ordersMeta?.totalPages ?? 1
   const hasPrev     = page > 1
@@ -108,19 +118,9 @@ export default function OrdersPage() {
                 My Orders
               </h1>
               <p className="mt-2 text-sm text-white/30 font-light">
-                Real-time tracking for every purchase
+                Manage your recent purchases
               </p>
             </div>
-
-            {/* Refresh button */}
-            <button
-              onClick={() => fetchOrders(true)}
-              aria-label="Refresh orders"
-              className="mt-1 flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-white/40 transition hover:border-white/20 hover:text-white/70 active:scale-95"
-            >
-              <RefreshCw className={cn('w-3.5 h-3.5', refreshing && 'animate-spin')} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
           </motion.div>
 
           {/* ═══ FILTER PILLS ════════════════════════════════ */}

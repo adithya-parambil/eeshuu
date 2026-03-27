@@ -88,37 +88,25 @@ export default function DeliveryOrdersPage() {
     setLastUpdateTime(new Date())
   }, [availableOrders])
 
-  // ── Polling: always-on light poll for resilience; faster when disconnected ─
+  // ── Polling: always-on every 10s for consistent freshness ─
   useEffect(() => {
-    let fastPollId: NodeJS.Timeout | null = null
-    let slowPollId: NodeJS.Timeout | null = null
-
-    const poll = async (label: string) => {
+    let pollId: NodeJS.Timeout | null = null
+    const poll = async () => {
       try {
         const res = await ordersApi.listAvailable()
         setAvailableOrders(res.data.data)
         setLastUpdateTime(new Date())
-        console.log(`[DELIVERY ORDERS] ${label} poll received:`, res.data.data.length, 'orders')
+        console.log('[DELIVERY ORDERS] Poll received:', res.data.data.length, 'orders')
       } catch (err) {
-        console.error(`[DELIVERY ORDERS] ${label} poll failed:`, err)
+        console.error('[DELIVERY ORDERS] Poll failed:', err)
       }
     }
-
-    // Faster poll when disconnected or empty list
-    if ((!isWebSocketConnected || availableOrders.length === 0) && !isLoading) {
-      console.log('[DELIVERY ORDERS] Starting fast polling (10s) — disconnected or empty list')
-      fastPollId = setInterval(() => { void poll('Fast') }, 10000) as unknown as number
-    }
-    // Light background poll every 60s for eventual consistency
-    console.log('[DELIVERY ORDERS] Starting light background polling (60s)')
-    slowPollId = setInterval(() => { void poll('Light') }, 60000) as unknown as number
-
+    pollId = setInterval(() => { void poll() }, 10_000)
     return () => {
-      if (fastPollId) clearInterval(fastPollId)
-      if (slowPollId) clearInterval(slowPollId)
+      if (pollId) clearInterval(pollId)
       console.log('[DELIVERY ORDERS] Cleanup complete')
     }
-  }, [availableOrders.length, isLoading, isWebSocketConnected])
+  }, [])
 
   const handleAccept = async (order: Order) => {
     setAccepting(order._id)
@@ -163,13 +151,8 @@ export default function DeliveryOrdersPage() {
             <h1 className="text-2xl font-bold text-white">Available Orders</h1>
             <p className="text-white/30 text-sm mt-0.5">
               {availableOrders.length} order{availableOrders.length !== 1 ? 's' : ''} waiting
-              {lastUpdateTime && (
-                <span className="ml-2 text-[10px] opacity-50">
-                  (Updated: {lastUpdateTime.toLocaleTimeString()})
-                </span>
-              )}
-            </p>
-          </motion.div>
+          </p>
+        </motion.div>
 
           <motion.button
             whileTap={{ scale: 0.95 }}
@@ -185,17 +168,6 @@ export default function DeliveryOrdersPage() {
           </motion.button>
         </div>
 
-        {/* Live indicator */}
-        <div className="flex items-center gap-2 mb-6">
-          <span className="w-2 h-2 rounded-full pulse-dot" style={{ background: isWebSocketConnected ? 'var(--acid)' : '#ef4444' }} />
-          
-          {!isWebSocketConnected && (
-            <span className="text-[10px] text-white/20 ml-1">
-              (Last: {lastUpdateTime.toLocaleTimeString()})
-            </span>
-          )}
-        </div>
-
         {/* Orders */}
         {isLoading ? (
           <div className="space-y-3">
@@ -209,7 +181,7 @@ export default function DeliveryOrdersPage() {
           >
             <Package className="w-12 h-12 mb-3" />
             <p className="text-sm">No orders available right now</p>
-            <p className="text-xs mt-1">New orders will appear here instantly</p>
+            <p className="text-xs mt-1">New orders will appear here</p>
           </motion.div>
         ) : (
           <AnimatePresence mode="popLayout">

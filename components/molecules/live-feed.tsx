@@ -23,15 +23,14 @@ export function LiveFeed({ events }: LiveFeedProps) {
     <div className="surface-card rounded-2xl overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-4 border-b border-white/[0.06]">
         <Activity className="w-4 h-4 text-white/40" />
-        <h3 className="text-white/70 text-sm font-medium">Live Activity</h3>
-        <span className="ml-auto w-2 h-2 rounded-full pulse-dot" style={{ background: 'var(--acid)' }} />
+        <h3 className="text-white/70 text-sm font-medium">Activity Log</h3>
       </div>
 
       <div className="max-h-80 overflow-y-auto">
         {events.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-white/15">
             <Activity className="w-8 h-8 mb-2" />
-            <p className="text-xs">Waiting for events…</p>
+            <p className="text-xs">No activity yet</p>
           </div>
         ) : (
           <AnimatePresence mode="popLayout" initial={false}>

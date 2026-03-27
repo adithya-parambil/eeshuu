@@ -88,7 +88,7 @@ export default function AdminDashboardPage() {
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <h1 className="text-2xl font-bold text-white" style={{ fontFamily: 'var(--font-head)' }}>Dashboard</h1>
-          <p className="text-white/30 text-sm mt-0.5" style={{ fontFamily: 'var(--font-mono)' }}>System overview — live</p>
+          <p className="text-white/30 text-sm mt-0.5" style={{ fontFamily: 'var(--font-mono)' }}>System overview</p>
         </motion.div>
 
         {/* Stats */}

@@ -101,7 +101,32 @@ export default function OrderDetailPage() {
     }
     fetch()
     return () => setActiveOrder(null)
-  }, [id])
+  }, [id, router, setActiveOrder, setPartnerCoords])
+
+  // ── Polling: always-on every 10s for consistent freshness ───────────────────
+  useEffect(() => {
+    let pollId: NodeJS.Timeout | null = null
+    const poll = async () => {
+      try {
+        const res = await ordersApi.get(id)
+        const order = res.data.data
+        setActiveOrder(order)
+        updateOrderInList(id, order)
+
+        // Only update partner location via poll if status is active
+        if (['ACCEPTED', 'PICKED_UP', 'ON_THE_WAY'].includes(order.status)) {
+          const locRes = await ordersApi.getPartnerLocation(id)
+          const loc = locRes.data.data
+          if (loc) {
+            setPartnerCoords({ lat: loc.lat, lng: loc.lng })
+            if (loc.accuracy !== undefined) setPartnerAccuracy(loc.accuracy)
+          }
+        }
+      } catch { /* ignore */ }
+    }
+    pollId = setInterval(() => { void poll() }, 10_000)
+    return () => { if (pollId) clearInterval(pollId) }
+  }, [id, setActiveOrder, updateOrderInList, setPartnerCoords])
 
   // Join the order room so we receive live location broadcasts, then listen for updates
   useEffect(() => {
@@ -238,7 +263,7 @@ export default function OrderDetailPage() {
 
           {/* Live tracking stepper */}
           <div className="surface-card rounded-2xl p-6 mb-4">
-            <h2 className="text-white/60 text-xs font-medium uppercase tracking-wider mb-5">Live Tracking</h2>
+            <h2 className="text-white/60 text-xs font-medium uppercase tracking-wider mb-5">Order Tracking</h2>
             <StatusStepper status={activeOrder.status} statusHistory={activeOrder.statusHistory} />
           </div>
 
@@ -253,14 +278,8 @@ export default function OrderDetailPage() {
                 className="surface-card rounded-2xl overflow-hidden mb-4"
               >
                 <div className="flex items-center gap-2 px-5 pt-5 pb-3">
-                  <Navigation className="w-4 h-4 animate-pulse" style={{ color: 'var(--acid)' }} />
+                  <Navigation className="w-4 h-4" style={{ color: 'var(--acid)' }} />
                   <h2 className="text-white/60 text-xs font-medium uppercase tracking-wider">Partner Location</h2>
-                  <span className={cn(
-                    'ml-auto text-[10px] font-medium',
-                    partnerOffline ? 'text-amber-400' : 'text-emerald-400',
-                  )}>
-                    {partnerOffline ? 'LAST KNOWN' : 'LIVE'}
-                  </span>
                 </div>
                 <div style={{ height: 220 }}>
                   <DeliveryMap

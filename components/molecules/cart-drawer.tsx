@@ -276,7 +276,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
       }, idempotencyKeyRef.current!)
 
       prependOrder(orderRes.data.data)
-      clearCart(); onClose(); setStep('cart')
+      clearCart(); broadcastCartAction('CLEAR'); onClose(); setStep('cart')
       idempotencyKeyRef.current = null
       toast.success('Order placed successfully')
     } catch (err: any) {
